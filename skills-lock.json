@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "skills": {
+    "trello-use": {
+      "source": "atlassian/trello-mcp-server",
+      "sourceType": "github",
+      "skillPath": "skills/trello-use/SKILL.md",
+      "computedHash": "fecc5f157a64e15b99b3b18c0ca9a95e6f50a9cdad4c128c12f085268953ebf6"
+    }
+  }
+}
