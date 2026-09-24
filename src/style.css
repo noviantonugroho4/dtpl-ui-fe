@@ -22,4 +22,9 @@ body {
   --color-brand-600: #2c6272;
   --color-brand-700: #1f4b5b;
   --color-brand-800: #173a46;
+
+  /* Neutral text/border colors from the Figma design system (SDS) */
+  --color-ink-900: #1e1e1e;
+  --color-ink-500: #757575;
+  --color-ink-300: #b3b3b3;
 }

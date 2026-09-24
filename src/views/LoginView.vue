@@ -60,130 +60,150 @@ async function onSubmit() {
 </script>
 
 <template>
-  <div class="min-h-full bg-white p-3 sm:p-6 lg:p-9 dark:bg-slate-950">
-    <div
-      class="mx-auto grid min-h-[calc(100vh-1.5rem)] max-w-7xl overflow-hidden rounded-xl shadow-lg ring-1 ring-slate-200 sm:min-h-[calc(100vh-3rem)] lg:min-h-[calc(100vh-4.5rem)] lg:grid-cols-2 dark:ring-slate-800"
+  <div class="grid min-h-full grid-cols-[minmax(0,1fr)] bg-white lg:grid-cols-2">
+    <!-- Brand panel (Figma 28:1404) -->
+    <section
+      class="flex min-w-0 flex-col items-center justify-center gap-8 bg-[linear-gradient(221.63deg,var(--color-brand-500)_0%,var(--color-brand-700)_100%)] p-6 text-white sm:gap-12"
+      aria-labelledby="brand-heading"
     >
-      <!-- Brand panel -->
-      <section
-        class="relative flex flex-col items-center justify-between gap-8 bg-gradient-to-b from-brand-500 to-brand-700 px-6 py-8 text-white sm:px-10 lg:py-12"
-        aria-labelledby="brand-heading"
+      <h2 id="brand-heading" class="sr-only">{{ t('app.name') }}</h2>
+
+      <img
+        :src="logoUrl"
+        alt="WIDEWI"
+        class="w-64 max-w-full sm:w-[360px]"
+        width="900"
+        height="610"
+        decoding="async"
+      />
+
+      <img
+        :src="servicesUrl"
+        :alt="t('login.brandServices')"
+        class="w-full max-w-[440px]"
+        width="1200"
+        height="286"
+        decoding="async"
+      />
+
+      <p class="w-full max-w-[30rem] text-center text-2xl leading-[1.2] sm:text-[32px]">
+        <span class="font-bold">WIDEWI</span>: {{ t('login.brandTagline') }}
+      </p>
+    </section>
+
+    <!-- Form panel (Figma 26:1215) -->
+    <section class="relative flex min-w-0 flex-col items-center justify-center gap-9 p-6 sm:p-10">
+      <div class="flex w-full justify-end lg:absolute lg:top-6 lg:right-6 lg:w-auto">
+        <LanguageSwitcher />
+      </div>
+
+      <div class="flex w-full max-w-[400px] flex-col gap-2 text-center">
+        <h1 class="text-3xl leading-[1.2] font-semibold tracking-[-0.8px] text-ink-900 sm:text-[40px]">
+          {{ t('login.welcome') }}
+        </h1>
+        <p class="text-base leading-[1.2] text-ink-500">{{ t('login.subtitle') }}</p>
+      </div>
+
+      <p
+        v-if="USE_MOCK_API"
+        class="w-full max-w-[400px] rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800"
       >
-        <h2 id="brand-heading" class="sr-only">{{ t('app.name') }}</h2>
+        {{ t('login.mockNotice') }}
+      </p>
 
-        <img
-          :src="logoUrl"
-          alt="WiDeWi"
-          class="w-56 max-w-full drop-shadow-md sm:w-72 lg:mt-6 lg:w-[22rem]"
-          width="900"
-          height="610"
-          decoding="async"
-        />
-
-        <div class="hidden w-full max-w-lg flex-col items-center gap-6 lg:flex">
-          <img
-            :src="servicesUrl"
-            :alt="t('login.brandServices')"
-            class="w-full"
-            width="1200"
-            height="286"
-            loading="lazy"
-            decoding="async"
+      <form class="flex w-full max-w-[400px] flex-col gap-9" novalidate @submit.prevent="onSubmit">
+        <div class="flex flex-col gap-2">
+          <label for="username" class="text-base leading-[1.4] text-ink-900">
+            {{ t('login.username') }}
+          </label>
+          <input
+            id="username"
+            v-model="username"
+            type="text"
+            name="username"
+            autocomplete="username"
+            required
+            :placeholder="t('login.usernamePlaceholder')"
+            class="block w-full rounded-lg border border-ink-500 bg-white px-4 py-3 text-base leading-none text-ink-900 placeholder:italic placeholder:text-ink-300 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/30 focus:outline-none"
           />
         </div>
 
-        <p class="max-w-md text-center text-sm leading-relaxed text-white/85 sm:text-base">
-          {{ t('login.brandTagline') }}
-        </p>
-      </section>
-
-      <!-- Form panel -->
-      <section class="relative flex flex-col bg-white px-6 py-8 sm:px-12 lg:px-16 lg:py-12 dark:bg-slate-900">
-        <div class="flex justify-end">
-          <LanguageSwitcher />
-        </div>
-
-        <div class="mx-auto flex w-full max-w-sm flex-1 flex-col justify-center py-8">
-          <h1 class="text-3xl font-extrabold tracking-tight text-brand-700 sm:text-4xl dark:text-brand-100">
-            {{ t('login.welcome') }}
-          </h1>
-          <p class="mt-2 text-sm text-slate-500 dark:text-slate-400">{{ t('login.subtitle') }}</p>
-
-          <p
-            v-if="USE_MOCK_API"
-            class="mt-5 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-300"
-          >
-            {{ t('login.mockNotice') }}
-          </p>
-
-          <form class="mt-8 space-y-5" novalidate @submit.prevent="onSubmit">
-            <div>
-              <label for="username" class="block text-sm font-semibold text-slate-700 dark:text-slate-200">
-                {{ t('login.username') }}
-              </label>
-              <input
-                id="username"
-                v-model="username"
-                type="text"
-                name="username"
-                autocomplete="username"
-                required
-                :placeholder="t('login.usernamePlaceholder')"
-                class="mt-2 block h-14 w-full rounded-lg border border-slate-300 bg-slate-50 px-4 text-base text-slate-900 placeholder:text-slate-400 focus:border-brand-500 focus:bg-white focus:ring-2 focus:ring-brand-500/30 focus:outline-none dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
-              />
-            </div>
-
-            <div>
-              <div class="flex items-center justify-between">
-                <label for="password" class="block text-sm font-semibold text-slate-700 dark:text-slate-200">
-                  {{ t('login.password') }}
-                </label>
-                <button
-                  type="button"
-                  class="text-xs font-semibold text-brand-500 hover:text-brand-600 dark:text-brand-400"
-                  @click="showPassword = !showPassword"
-                >
-                  {{ showPassword ? t('login.hidePassword') : t('login.showPassword') }}
-                </button>
-              </div>
-              <input
-                id="password"
-                v-model="password"
-                :type="showPassword ? 'text' : 'password'"
-                name="password"
-                autocomplete="current-password"
-                required
-                :placeholder="t('login.passwordPlaceholder')"
-                class="mt-2 block h-14 w-full rounded-lg border border-slate-300 bg-slate-50 px-4 text-base text-slate-900 placeholder:text-slate-400 focus:border-brand-500 focus:bg-white focus:ring-2 focus:ring-brand-500/30 focus:outline-none dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
-              />
-            </div>
-
-            <p
-              v-if="errorMessage"
-              role="alert"
-              class="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-300"
-            >
-              {{ errorMessage }}
-            </p>
-
+        <div class="flex flex-col gap-2">
+          <label for="password" class="text-base leading-[1.4] text-ink-900">
+            {{ t('login.password') }}
+          </label>
+          <div class="relative">
+            <input
+              id="password"
+              v-model="password"
+              :type="showPassword ? 'text' : 'password'"
+              name="password"
+              autocomplete="current-password"
+              required
+              :placeholder="t('login.passwordPlaceholder')"
+              class="block w-full rounded-lg border border-ink-500 bg-white py-3 pr-12 pl-4 text-base leading-none text-ink-900 placeholder:italic placeholder:text-ink-300 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/30 focus:outline-none"
+            />
             <button
-              type="submit"
-              :disabled="submitting"
-              class="inline-flex h-13 w-full items-center justify-center rounded-lg bg-brand-500 px-4 text-base font-bold text-white shadow-sm transition hover:bg-brand-600 focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-60 dark:focus-visible:ring-offset-slate-900"
+              type="button"
+              class="absolute inset-y-0 right-0 flex w-12 items-center justify-center text-ink-500 hover:text-brand-500 focus-visible:text-brand-500 focus-visible:outline-none"
+              :aria-label="showPassword ? t('login.hidePassword') : t('login.showPassword')"
+              :aria-pressed="showPassword"
+              @click="showPassword = !showPassword"
             >
-              <svg v-if="submitting" class="mr-2 size-4 animate-spin" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
-                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 0 1 8-8v4a4 4 0 0 0-4 4H4z" />
+              <svg
+                v-if="showPassword"
+                class="size-5"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.8"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+              >
+                <path d="M3 3l18 18" />
+                <path d="M10.6 10.6a2 2 0 0 0 2.8 2.8" />
+                <path d="M9.9 5.1A10.4 10.4 0 0 1 12 5c5 0 9 4.5 10 7-.5 1.2-1.5 2.7-3 4" />
+                <path d="M6.6 6.6C4.3 8 2.7 10.2 2 12c1 2.5 5 7 10 7 1.5 0 2.9-.4 4.1-1" />
               </svg>
-              {{ submitting ? t('login.submitting') : t('login.submit') }}
+              <svg
+                v-else
+                class="size-5"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.8"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+              >
+                <path d="M2 12c1-2.5 5-7 10-7s9 4.5 10 7c-1 2.5-5 7-10 7S3 14.5 2 12z" />
+                <circle cx="12" cy="12" r="3" />
+              </svg>
             </button>
-          </form>
+          </div>
         </div>
 
-        <p class="text-center text-xs text-slate-400 dark:text-slate-500">
-          © {{ new Date().getFullYear() }} {{ t('app.name') }}
+        <p
+          v-if="errorMessage"
+          role="alert"
+          class="-my-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700"
+        >
+          {{ errorMessage }}
         </p>
-      </section>
-    </div>
+
+        <button
+          type="submit"
+          :disabled="submitting"
+          class="inline-flex h-[52px] w-full items-center justify-center gap-2 rounded-lg border border-brand-500 bg-brand-500 p-3 text-base leading-none font-extrabold text-white transition hover:bg-brand-600 focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          <svg v-if="submitting" class="size-4 animate-spin" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 0 1 8-8v4a4 4 0 0 0-4 4H4z" />
+          </svg>
+          {{ submitting ? t('login.submitting') : t('login.submit') }}
+        </button>
+      </form>
+    </section>
   </div>
 </template>
