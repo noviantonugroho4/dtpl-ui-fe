@@ -1,4 +1,10 @@
-name: Deploy to Vercel
+name: Test and Deploy
+
+# Quality gate + deployment in one pipeline:
+#   check  -> type-check, unit/component tests with coverage
+#   deploy -> build and deploy to Vercel (only if "check" passed)
+# Push to main deploys production; pull requests deploy a preview and get the URL as a comment.
+# Disconnect the Git integration in the Vercel project so this workflow is the only deployer.
 
 on:
   push:
@@ -10,16 +16,13 @@ permissions:
   contents: read
   pull-requests: write
 
-# One deployment per branch/PR at a time; a newer push cancels the older run.
 concurrency:
   group: deploy-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 env:
-  VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-  VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
-  # Build-time settings baked into the bundle. Change them under
-  # Settings > Secrets and variables > Actions > Variables, then re-run.
+  # Build-time settings baked into the bundle. Manage them under
+  # Settings > Secrets and variables > Actions > Variables (or in the Vercel project env vars).
   VITE_USE_MOCK_API: ${{ vars.VITE_USE_MOCK_API || 'true' }}
   VITE_MOCK_USERNAME: ${{ vars.VITE_MOCK_USERNAME || 'admin' }}
   VITE_MOCK_PASSWORD: ${{ vars.VITE_MOCK_PASSWORD || 'admin123' }}
@@ -28,14 +31,68 @@ env:
   VITE_API_BASE_URL: ${{ vars.VITE_API_BASE_URL || '' }}
 
 jobs:
-  deploy:
-    name: ${{ github.event_name == 'push' && 'Production' || 'Preview' }}
+  check:
+    name: Type-check and test
     runs-on: ubuntu-latest
-    # Skip PRs from forks: they cannot read the secrets anyway.
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Type-check
+        run: npm run typecheck
+
+      - name: Unit and component tests
+        run: npx vitest run --coverage --reporter=default --reporter=github-actions
+
+      - name: Coverage summary
+        if: always()
+        run: |
+          node -e '
+            const fs = require("fs");
+            const file = "coverage/coverage-summary.json";
+            if (!fs.existsSync(file)) { console.log("No coverage summary produced."); process.exit(0); }
+            const t = JSON.parse(fs.readFileSync(file, "utf8")).total;
+            const row = (k) => `| ${k[0].toUpperCase() + k.slice(1)} | ${t[k].pct}% | ${t[k].covered}/${t[k].total} |`;
+            const md = ["## Coverage", "", "| Metric | Covered | Count |", "|---|---:|---:|",
+              ...["statements","branches","functions","lines"].map(row), ""].join("\n");
+            fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, md);
+            console.log(md);
+          '
+
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: coverage/
+          retention-days: 14
+          if-no-files-found: ignore
+
+  deploy:
+    name: ${{ github.event_name == 'push' && 'Deploy production' || 'Deploy preview' }}
+    needs: check
+    runs-on: ubuntu-latest
+    # PRs from forks cannot read the secrets, so only same-repo PRs and pushes deploy.
     if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
     environment:
       name: ${{ github.event_name == 'push' && 'production' || 'preview' }}
       url: ${{ steps.deploy.outputs.url }}
+    env:
+      VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      VERCEL_ENV: ${{ github.event_name == 'push' && 'production' || 'preview' }}
+      PROD_FLAG: ${{ github.event_name == 'push' && '--prod' || '' }}
 
     steps:
       - name: Checkout
@@ -54,19 +111,16 @@ jobs:
         run: npm install --global vercel@latest
 
       - name: Pull Vercel project settings
-        run: >
-          vercel pull --yes
-          --environment=${{ github.event_name == 'push' && 'production' || 'preview' }}
-          --token=${{ secrets.VERCEL_TOKEN }}
+        run: vercel pull --yes --environment="$VERCEL_ENV" --token="$VERCEL_TOKEN"
 
-      - name: Type-check and build
+      - name: Build
         # Runs "npm run build" (vue-tsc + vite build) with the VITE_* env above.
-        run: vercel build ${{ github.event_name == 'push' && '--prod' || '' }} --token=${{ secrets.VERCEL_TOKEN }}
+        run: vercel build $PROD_FLAG --token="$VERCEL_TOKEN"
 
       - name: Deploy
         id: deploy
         run: |
-          url=$(vercel deploy --prebuilt ${{ github.event_name == 'push' && '--prod' || '' }} --token=${{ secrets.VERCEL_TOKEN }})
+          url=$(vercel deploy --prebuilt $PROD_FLAG --token="$VERCEL_TOKEN")
           echo "url=$url" >> "$GITHUB_OUTPUT"
           echo "Deployed to $url" >> "$GITHUB_STEP_SUMMARY"
 

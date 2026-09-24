@@ -53,7 +53,9 @@ src/
 ## Scripts
 
 - `npm run dev` – start the dev server with API proxy
+- `npm run typecheck` – `vue-tsc` only
 - `npm run build` – type-check (`vue-tsc`) and build to `dist/`
+- `npm test`, `npm run test:run`, `npm run test:coverage` – Vitest
 - `npm run preview` – serve the production build locally
 
 ## Mock mode (backend offline)
@@ -71,17 +73,36 @@ With mock mode on, `src/api/mock.ts` replaces the HTTP calls: login checks the c
 and the profile endpoint returns a generated user. A notice is shown on the login page. Set it to `false`
 (or remove it) to talk to the real backend again. Restart `npm run dev` after changing `.env`.
 
-## Deployment (Vercel via GitHub Actions)
+## Testing
 
-`.github/workflows/deploy.yml` builds and deploys on every push to `main` (production) and on pull requests (preview URL
-posted as a PR comment). `vercel.json` rewrites `/api/*` to the backend server-side, so the deployed site does not need
-CORS on the backend, and falls back to `index.html` for client-side routes.
+Vitest with Vue Test Utils and jsdom. Tests live next to the code as `*.test.ts`.
+
+```bash
+npm test               # watch mode
+npm run test:run       # single run
+npm run test:coverage  # single run with coverage report in coverage/
+```
+
+Shared setup is in `src/test/setup.ts` (i18n plugin, storage reset) and `src/test/helpers.ts` (fixtures).
+Tests run with fixed env values from `vitest.config.ts`, so a local `.env` does not affect results.
+
+## CI and deployment (GitHub Actions → Vercel)
+
+`.github/workflows/deploy.yml` runs on every push to `main` and on pull requests:
+
+1. **check**: type-check and unit/component tests with coverage (summary in the job summary, HTML report as artifact).
+2. **deploy** (only if check passed): `vercel build` + `vercel deploy --prebuilt`. Push to `main` deploys production;
+   a pull request deploys a preview and the URL is posted as a PR comment.
+
+`vercel.json` rewrites `/api/*` to the backend server-side, so the deployed site does not need CORS on the backend,
+and falls back to `index.html` for client-side routes.
 
 One-time setup:
 
-1. Create a Vercel account and install the CLI: `npm i -g vercel`, then `vercel login`.
-2. In this folder run `vercel link` (create a new project, do **not** connect it to Git; the Action deploys instead).
-   This writes `.vercel/project.json` containing `orgId` and `projectId`.
+1. In the Vercel project: Settings → Git → **Disconnect** the GitHub repository, so Vercel no longer deploys on its
+   own (otherwise every push deploys twice and the untested Vercel build wins).
+2. Get the project IDs: Settings → General shows the **Project ID**; the **Team/Org ID** is under the account or team
+   settings. Alternatively run `npm i -g vercel && vercel login && vercel link` here and read `.vercel/project.json`.
 3. Create a token at https://vercel.com/account/tokens.
 4. In GitHub, Settings → Secrets and variables → Actions:
    - Secrets: `VERCEL_TOKEN`, `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID`

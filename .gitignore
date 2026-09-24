@@ -144,3 +144,6 @@ vite.config.ts.timestamp-*
 
 # Vercel CLI local link (contains org/project IDs)
 .vercel
+
+# Test output
+coverage
