@@ -20,6 +20,9 @@ export default {
   },
   login: {
     title: 'Sign in',
+    welcome: 'Welcome back',
+    brandTagline: 'Explore, stay, dine and book, all in one place.',
+    brandServices: 'WiDeWi services: lodging, restaurants, tourism, tickets',
     subtitle: 'Enter your credentials to access the admin console.',
     username: 'Username',
     usernamePlaceholder: 'Your username',

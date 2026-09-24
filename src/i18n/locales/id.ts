@@ -20,6 +20,9 @@ export default {
   },
   login: {
     title: 'Masuk',
+    welcome: 'Selamat datang kembali',
+    brandTagline: 'Jelajahi, inap, kuliner, dan booking dalam satu tempat.',
+    brandServices: 'Layanan WiDeWi: penginapan, rumah makan, wisata, tiket',
     subtitle: 'Masukkan kredensial Anda untuk mengakses konsol admin.',
     username: 'Nama pengguna',
     usernamePlaceholder: 'Nama pengguna Anda',
