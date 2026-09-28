@@ -1,21 +1,63 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '@/stores/auth'
 import LanguageSwitcher from '@/components/LanguageSwitcher.vue'
+import MaskIcon from '@/components/MaskIcon.vue'
+import logoUrl from '@/assets/brand/widewi-logo-horizontal.png'
+import iconStar from '@/assets/icons/star.svg'
+import iconNavigation from '@/assets/icons/navigation.svg'
+import iconHome from '@/assets/icons/home.svg'
+import iconCoffee from '@/assets/icons/coffee.svg'
+import iconTag from '@/assets/icons/tag.svg'
+import iconMessageSquare from '@/assets/icons/message-square.svg'
+import iconMenu from '@/assets/icons/menu.svg'
+import iconLogOut from '@/assets/icons/log-out.svg'
 
 const { t } = useI18n()
 const router = useRouter()
 const route = useRoute()
 const auth = useAuthStore()
 
+/** Mobile drawer state (below the `lg` breakpoint). */
 const sidebarOpen = ref(false)
+/** Desktop collapse state (at or above the `lg` breakpoint). */
+const sidebarCollapsed = ref(false)
 const loggingOut = ref(false)
 
-const navItems = [{ name: 'home', labelKey: 'nav.home' }]
+interface NavItem {
+  name: string
+  labelKey: string
+  icon: string
+}
+
+/** Menu sections mirror the Figma sidebar: separators sit between sections. */
+const navSections: NavItem[][] = [
+  [{ name: 'dashboard', labelKey: 'nav.dashboard', icon: iconStar }],
+  [
+    { name: 'attractions', labelKey: 'nav.attractions', icon: iconNavigation },
+    { name: 'lodging', labelKey: 'nav.lodging', icon: iconHome },
+    { name: 'restaurants', labelKey: 'nav.restaurants', icon: iconCoffee },
+  ],
+  [
+    { name: 'ticketBookings', labelKey: 'nav.ticketBookings', icon: iconTag },
+    { name: 'reviews', labelKey: 'nav.reviews', icon: iconMessageSquare },
+  ],
+]
 
 watch(() => route.fullPath, () => (sidebarOpen.value = false))
+
+function isDesktop(): boolean {
+  return typeof window !== 'undefined' && typeof window.matchMedia === 'function'
+    ? window.matchMedia('(min-width: 64rem)').matches
+    : false
+}
+
+function toggleSidebar() {
+  if (isDesktop()) sidebarCollapsed.value = !sidebarCollapsed.value
+  else sidebarOpen.value = true
+}
 
 async function onLogout() {
   loggingOut.value = true
@@ -29,29 +71,26 @@ async function onLogout() {
 </script>
 
 <template>
-  <div class="flex min-h-full">
+  <div class="flex min-h-full bg-canvas text-ink-900">
     <!-- Mobile backdrop -->
     <div
       v-if="sidebarOpen"
-      class="fixed inset-0 z-30 bg-slate-900/50 lg:hidden"
+      class="fixed inset-0 z-30 bg-ink-900/50 lg:hidden"
       aria-hidden="true"
       @click="sidebarOpen = false"
     />
 
-    <!-- Sidebar -->
+    <!-- Sidebar (Figma 29:3283) -->
     <aside
-      class="fixed inset-y-0 left-0 z-40 flex w-64 flex-col border-r border-slate-200 bg-white transition-transform duration-200 lg:static lg:translate-x-0 dark:border-slate-800 dark:bg-slate-900"
-      :class="sidebarOpen ? 'translate-x-0' : '-translate-x-full'"
+      class="fixed inset-y-0 left-0 z-40 flex w-[259px] flex-col gap-12 border-r border-ink-300 bg-white px-3 pt-5 pb-3 transition-transform duration-200 lg:static lg:translate-x-0"
+      :class="[sidebarOpen ? 'translate-x-0' : '-translate-x-full', sidebarCollapsed ? 'lg:hidden' : '']"
     >
-      <div class="flex h-16 items-center gap-2 px-5 font-semibold">
-        <span class="flex size-8 items-center justify-center rounded-lg bg-indigo-600 text-sm text-white">W</span>
-        <div class="leading-tight">
-          <p>{{ t('app.name') }}</p>
-          <p class="text-xs font-normal text-slate-500 dark:text-slate-400">{{ t('app.tagline') }}</p>
-        </div>
+      <div class="relative flex w-full items-center justify-center px-[25px]">
+        <span class="sr-only">{{ t('app.name') }}</span>
+        <img :src="logoUrl" alt="WIDEWI" class="h-10 w-auto max-w-full" width="234" height="40" decoding="async" />
         <button
           type="button"
-          class="ml-auto rounded-md p-1.5 text-slate-500 hover:bg-slate-100 lg:hidden dark:hover:bg-slate-800"
+          class="absolute top-1/2 right-0 -translate-y-1/2 rounded-md p-1.5 text-ink-500 hover:bg-canvas lg:hidden"
           :aria-label="t('nav.closeMenu')"
           @click="sidebarOpen = false"
         >
@@ -61,65 +100,62 @@ async function onLogout() {
         </button>
       </div>
 
-      <nav class="flex-1 space-y-1 px-3 py-4" :aria-label="t('nav.menu')">
-        <RouterLink
-          v-for="item in navItems"
-          :key="item.name"
-          :to="{ name: item.name }"
-          class="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"
-          exact-active-class="bg-indigo-50 text-indigo-700 hover:bg-indigo-50 dark:bg-indigo-500/15 dark:text-indigo-300"
-        >
-          <svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
-            <path d="M3 11.5 12 4l9 7.5M5 10v10h14V10" />
-          </svg>
-          {{ t(item.labelKey) }}
-        </RouterLink>
+      <nav class="flex w-full flex-col rounded-lg bg-white" :aria-label="t('nav.menu')">
+        <template v-for="(section, index) in navSections" :key="index">
+          <div v-if="index > 0" class="px-4 py-2" role="separator">
+            <div class="h-px w-full bg-ink-200" />
+          </div>
+          <div class="flex flex-col overflow-clip rounded-lg">
+            <RouterLink
+              v-for="item in section"
+              :key="item.name"
+              :to="{ name: item.name }"
+              class="flex w-full items-center gap-3 rounded-lg px-4 py-3 text-xs leading-[1.4] text-ink-900 hover:bg-brand-50"
+              active-class="bg-brand-500 text-sm text-canvas hover:bg-brand-500"
+            >
+              <MaskIcon :src="item.icon" />
+              <span class="min-w-0 flex-1 wrap-break-word">{{ t(item.labelKey) }}</span>
+            </RouterLink>
+          </div>
+        </template>
       </nav>
-
-      <div v-if="auth.user" class="border-t border-slate-200 p-4 dark:border-slate-800">
-        <p class="text-xs text-slate-500 uppercase dark:text-slate-400">{{ t('nav.account') }}</p>
-        <p class="mt-1 truncate text-sm font-medium">{{ auth.user.username }}</p>
-        <p class="truncate text-xs text-slate-500 dark:text-slate-400">{{ auth.user.email }}</p>
-      </div>
     </aside>
 
     <!-- Main column -->
     <div class="flex min-w-0 flex-1 flex-col">
-      <header
-        class="sticky top-0 z-20 flex h-16 items-center gap-3 border-b border-slate-200 bg-white/90 px-4 backdrop-blur sm:px-6 dark:border-slate-800 dark:bg-slate-900/90"
-      >
+      <!-- Header (Figma 29:3285) -->
+      <header class="sticky top-0 z-20 flex h-[70px] items-center gap-4 border-b border-ink-300 bg-white p-3">
         <button
           type="button"
-          class="rounded-md p-2 text-slate-600 hover:bg-slate-100 lg:hidden dark:text-slate-300 dark:hover:bg-slate-800"
+          class="rounded-md text-ink-900 hover:bg-canvas"
           :aria-label="t('nav.openMenu')"
-          @click="sidebarOpen = true"
+          :aria-expanded="isDesktop() ? !sidebarCollapsed : sidebarOpen"
+          @click="toggleSidebar"
         >
-          <svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-            <path d="M4 7h16M4 12h16M4 17h16" />
-          </svg>
+          <MaskIcon :src="iconMenu" :size="28" />
         </button>
 
-        <h1 class="text-base font-semibold">
-          {{ route.meta.titleKey ? t(route.meta.titleKey) : t('app.name') }}
+        <h1 class="min-w-0 flex-1 truncate text-xl leading-[1.2] font-semibold tracking-[-0.4px] text-ink-900">
+          {{ t('app.siteTitle') }}
         </h1>
 
-        <div class="ml-auto flex items-center gap-3">
-          <LanguageSwitcher />
+        <div class="flex shrink-0 items-center gap-3">
+          <div class="hidden sm:block">
+            <LanguageSwitcher />
+          </div>
           <button
             type="button"
             :disabled="loggingOut"
-            class="inline-flex items-center gap-2 rounded-lg border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-100 disabled:opacity-60 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
+            class="inline-flex items-center justify-center gap-2 rounded-lg bg-brand-500 p-3 text-sm leading-none font-medium text-canvas transition hover:bg-brand-600 focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-60"
             @click="onLogout"
           >
-            <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-              <path d="M15 4h4v16h-4M10 17l5-5-5-5M15 12H3" />
-            </svg>
             {{ t('nav.logout') }}
+            <MaskIcon :src="iconLogOut" :size="16" />
           </button>
         </div>
       </header>
 
-      <main class="flex-1 px-4 py-6 sm:px-6 lg:px-8">
+      <main class="flex flex-1 flex-col gap-4 p-4">
         <RouterView />
       </main>
     </div>

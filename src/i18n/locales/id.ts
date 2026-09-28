@@ -2,6 +2,7 @@ export default {
   app: {
     name: 'WiDeWi CMS',
     tagline: 'Konsol Admin',
+    siteTitle: 'Website Destinasi Wisata',
   },
   common: {
     loading: 'Memuat…',
@@ -11,7 +12,12 @@ export default {
   },
   nav: {
     home: 'Beranda',
-    dashboard: 'Dasbor',
+    dashboard: 'Dashboard',
+    attractions: 'Daftar Objek Wisata',
+    lodging: 'Daftar Penginapan',
+    restaurants: 'Daftar Rumah Makan',
+    ticketBookings: 'Pemesanan Ticket Wisata',
+    reviews: 'Penilaian dan Komentar',
     menu: 'Menu',
     openMenu: 'Buka menu',
     closeMenu: 'Tutup menu',
@@ -34,6 +40,16 @@ export default {
     submitting: 'Sedang masuk…',
     mockNotice: 'Mode mock aktif. Backend tidak dihubungi; gunakan kredensial dari berkas .env Anda.',
     required: 'Nama pengguna dan kata sandi wajib diisi.',
+  },
+  dashboard: {
+    title: 'Dashboard',
+    subtitle: 'Lihat ringkasan sekilas',
+    ticketChart: 'Jumlah Pemesanan Tiket Objek Wisata',
+    villageChart: 'Kelurahan yang Paling Banyak Dikunjungi',
+  },
+  comingSoon: {
+    title: 'Segera hadir',
+    description: 'Halaman ini belum tersedia.',
   },
   home: {
     welcome: 'Selamat datang kembali, {name}',

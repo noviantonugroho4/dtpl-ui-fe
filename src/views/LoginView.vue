@@ -29,7 +29,9 @@ const errorMessage = computed(() => {
 function redirectTarget(): string {
   const redirect = route.query.redirect
   // Only allow same-app relative paths to avoid open redirects.
-  return typeof redirect === 'string' && redirect.startsWith('/') && !redirect.startsWith('//') ? redirect : '/'
+  return typeof redirect === 'string' && redirect.startsWith('/') && !redirect.startsWith('//')
+    ? redirect
+    : '/dashboard'
 }
 
 async function onSubmit() {

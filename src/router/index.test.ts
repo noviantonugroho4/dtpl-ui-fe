@@ -26,7 +26,7 @@ describe('router guards', () => {
   it('redirects unauthenticated users from a protected route to login with a redirect query', async () => {
     await router.push('/?tab=profile')
     expect(router.currentRoute.value.name).toBe('login')
-    expect(router.currentRoute.value.query.redirect).toBe('/?tab=profile')
+    expect(router.currentRoute.value.query.redirect).toBe('/dashboard?tab=profile')
   })
 
   it('does not add a redirect query when the target is the home page', async () => {
@@ -35,13 +35,14 @@ describe('router guards', () => {
     expect(router.currentRoute.value.query.redirect).toBeUndefined()
   })
 
-  it('lets an authenticated user reach home and validates the token once', async () => {
+  it('lets an authenticated user reach the dashboard and validates the token once', async () => {
     localStorage.setItem('dtpl.auth.token', 'jwt-1')
     api.me.mockResolvedValue({ data: { user: makeUser() } })
     setActivePinia(createPinia())
 
     await router.push('/')
-    expect(router.currentRoute.value.name).toBe('home')
+    expect(router.currentRoute.value.name).toBe('dashboard')
+    expect(router.currentRoute.value.path).toBe('/dashboard')
     expect(api.me).toHaveBeenCalledTimes(1)
     expect(useAuthStore().user?.username).toBe('admin')
   })
@@ -58,7 +59,7 @@ describe('router guards', () => {
 
     await router.push('/')
     await router.push('/login')
-    expect(router.currentRoute.value.name).toBe('home')
+    expect(router.currentRoute.value.name).toBe('dashboard')
   })
 
   it('redirects to login when the stored token is rejected on startup', async () => {

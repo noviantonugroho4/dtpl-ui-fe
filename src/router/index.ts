@@ -10,6 +10,9 @@ declare module 'vue-router' {
   }
 }
 
+/** Landing paths after sign-in; no `redirect` query is needed to get back to them. */
+const DEFAULT_PATHS = new Set(['/', '/dashboard'])
+
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
@@ -24,11 +27,42 @@ const router = createRouter({
       component: () => import('@/layouts/AdminLayout.vue'),
       meta: { requiresAuth: true },
       children: [
+        { path: '', redirect: { name: 'dashboard' } },
         {
-          path: '',
-          name: 'home',
-          component: () => import('@/views/HomeView.vue'),
-          meta: { titleKey: 'nav.home' },
+          path: 'dashboard',
+          name: 'dashboard',
+          component: () => import('@/views/DashboardView.vue'),
+          meta: { titleKey: 'nav.dashboard' },
+        },
+        {
+          path: 'objek-wisata',
+          name: 'attractions',
+          component: () => import('@/views/ComingSoonView.vue'),
+          meta: { titleKey: 'nav.attractions' },
+        },
+        {
+          path: 'penginapan',
+          name: 'lodging',
+          component: () => import('@/views/ComingSoonView.vue'),
+          meta: { titleKey: 'nav.lodging' },
+        },
+        {
+          path: 'rumah-makan',
+          name: 'restaurants',
+          component: () => import('@/views/ComingSoonView.vue'),
+          meta: { titleKey: 'nav.restaurants' },
+        },
+        {
+          path: 'pemesanan-tiket',
+          name: 'ticketBookings',
+          component: () => import('@/views/ComingSoonView.vue'),
+          meta: { titleKey: 'nav.ticketBookings' },
+        },
+        {
+          path: 'penilaian',
+          name: 'reviews',
+          component: () => import('@/views/ComingSoonView.vue'),
+          meta: { titleKey: 'nav.reviews' },
         },
       ],
     },
@@ -45,10 +79,10 @@ router.beforeEach(async (to): Promise<RouteLocationRaw | undefined> => {
   if (!auth.initialized) await auth.initialize()
 
   if (to.meta.requiresAuth && !auth.isAuthenticated) {
-    return { name: 'login', query: to.fullPath !== '/' ? { redirect: to.fullPath } : {} }
+    return { name: 'login', query: DEFAULT_PATHS.has(to.fullPath) ? {} : { redirect: to.fullPath } }
   }
   if (to.meta.guestOnly && auth.isAuthenticated) {
-    return { name: 'home' }
+    return { name: 'dashboard' }
   }
   return undefined
 })

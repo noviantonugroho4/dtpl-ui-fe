@@ -49,14 +49,14 @@ describe('LoginView', () => {
     expect(api.login).not.toHaveBeenCalled()
   })
 
-  it('submits trimmed credentials and redirects home on success', async () => {
+  it('submits trimmed credentials and redirects to the dashboard on success', async () => {
     api.login.mockResolvedValue({ data: { token: 'jwt', user: makeUser() } })
     const wrapper = mount(LoginView)
 
     await fillAndSubmit(wrapper, '  admin ', 'secret')
 
     expect(api.login).toHaveBeenCalledWith({ username: 'admin', password: 'secret' })
-    expect(routerMocks.replace).toHaveBeenCalledWith('/')
+    expect(routerMocks.replace).toHaveBeenCalledWith('/dashboard')
     expect(wrapper.find('[role="alert"]').exists()).toBe(false)
   })
 
@@ -69,7 +69,7 @@ describe('LoginView', () => {
 
     routerMocks.query = { redirect: '//evil.example' }
     await fillAndSubmit(mount(LoginView), 'admin', 'pw')
-    expect(routerMocks.replace).toHaveBeenLastCalledWith('/')
+    expect(routerMocks.replace).toHaveBeenLastCalledWith('/dashboard')
   })
 
   it('shows a translated message for a known API error code', async () => {

@@ -2,6 +2,7 @@ export default {
   app: {
     name: 'WiDeWi CMS',
     tagline: 'Admin Console',
+    siteTitle: 'Website Destinasi Wisata',
   },
   common: {
     loading: 'Loading…',
@@ -12,10 +13,15 @@ export default {
   nav: {
     home: 'Home',
     dashboard: 'Dashboard',
+    attractions: 'Tourist Attractions',
+    lodging: 'Lodging',
+    restaurants: 'Restaurants',
+    ticketBookings: 'Ticket Bookings',
+    reviews: 'Ratings & Comments',
     menu: 'Menu',
     openMenu: 'Open menu',
     closeMenu: 'Close menu',
-    logout: 'Sign out',
+    logout: 'Log out',
     account: 'Account',
   },
   login: {
@@ -34,6 +40,16 @@ export default {
     submitting: 'Signing in…',
     mockNotice: 'Mock mode is on. The backend is not contacted; use the credentials from your .env file.',
     required: 'Username and password are required.',
+  },
+  dashboard: {
+    title: 'Dashboard',
+    subtitle: 'Take a quick look at the overview',
+    ticketChart: 'Tourist attraction ticket bookings',
+    villageChart: 'Most visited villages',
+  },
+  comingSoon: {
+    title: 'Coming soon',
+    description: 'This page is not available yet.',
   },
   home: {
     welcome: 'Welcome back, {name}',

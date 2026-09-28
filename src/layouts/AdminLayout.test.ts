@@ -12,7 +12,7 @@ vi.mock('vue-router', async () => {
   const { defineComponent, h } = await import('vue')
   return {
     useRouter: () => ({ replace: routerMocks.replace }),
-    useRoute: () => ref({ fullPath: '/', meta: { titleKey: 'nav.home' } }).value,
+    useRoute: () => ref({ fullPath: '/dashboard', meta: { titleKey: 'nav.dashboard' } }).value,
     RouterLink: defineComponent({ props: { to: null }, setup: (_, { slots }) => () => h('a', slots.default?.()) }),
     RouterView: defineComponent({ setup: () => () => h('div', 'page') }),
   }
@@ -36,18 +36,26 @@ describe('AdminLayout', () => {
     routerMocks.replace.mockClear()
   })
 
-  it('shows the app name, page title, and the signed-in account', () => {
+  it('shows the app name, site title, and the sidebar menu', () => {
     const wrapper = mount(AdminLayout)
     expect(wrapper.text()).toContain('WiDeWi CMS')
-    expect(wrapper.find('h1').text()).toBe('Home')
-    expect(wrapper.text()).toContain('novi')
+    expect(wrapper.find('h1').text()).toBe('Website Destinasi Wisata')
+    const labels = wrapper.findAll('nav a').map((a) => a.text())
+    expect(labels).toEqual([
+      'Dashboard',
+      'Tourist Attractions',
+      'Lodging',
+      'Restaurants',
+      'Ticket Bookings',
+      'Ratings & Comments',
+    ])
   })
 
   it('signs out and navigates to the login page', async () => {
     api.logout.mockResolvedValue({ data: { logout: true } })
     const wrapper = mount(AdminLayout)
 
-    const logoutButton = wrapper.findAll('button').find((b) => b.text().includes('Sign out'))
+    const logoutButton = wrapper.findAll('button').find((b) => b.text().includes('Log out'))
     expect(logoutButton).toBeDefined()
     await logoutButton!.trigger('click')
     await flushPromises()
