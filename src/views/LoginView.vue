@@ -1,15 +1,15 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { useI18n } from 'vue-i18n'
 import { ApiError } from '@/api/client'
 import { USE_MOCK_API } from '@/api/auth'
+import { errorMessageFor } from '@/api/errorMessages'
 import { useAuthStore } from '@/stores/auth'
-import LanguageSwitcher from '@/components/LanguageSwitcher.vue'
-import logoUrl from '@/assets/brand/widewi-logo.webp'
-import servicesUrl from '@/assets/brand/widewi-services.webp'
+import MaskIcon from '@/components/MaskIcon.vue'
+import logoUrl from '@/assets/brand/widewi-login-logo.png'
+import servicesUrl from '@/assets/brand/widewi-login-services.png'
+import iconEye from '@/assets/icons/eye.svg'
 
-const { t, te } = useI18n()
 const router = useRouter()
 const route = useRoute()
 const auth = useAuthStore()
@@ -18,13 +18,7 @@ const username = ref('')
 const password = ref('')
 const showPassword = ref(false)
 const submitting = ref(false)
-const errorKey = ref<string | null>(null)
-const errorFallback = ref<string | null>(null)
-
-const errorMessage = computed(() => {
-  if (!errorKey.value) return null
-  return te(errorKey.value) ? t(errorKey.value) : (errorFallback.value ?? t('errors.UNKNOWN_ERROR'))
-})
+const errorMessage = ref<string | null>(null)
 
 function redirectTarget(): string {
   const redirect = route.query.redirect
@@ -35,11 +29,10 @@ function redirectTarget(): string {
 }
 
 async function onSubmit() {
-  errorKey.value = null
-  errorFallback.value = null
+  errorMessage.value = null
 
   if (!username.value.trim() || !password.value) {
-    errorKey.value = 'login.required'
+    errorMessage.value = 'Nama pengguna dan kata sandi wajib diisi.'
     return
   }
 
@@ -49,12 +42,8 @@ async function onSubmit() {
     password.value = ''
     await router.replace(redirectTarget())
   } catch (err) {
-    if (err instanceof ApiError) {
-      errorKey.value = `errors.${err.code}`
-      errorFallback.value = err.message
-    } else {
-      errorKey.value = 'errors.UNKNOWN_ERROR'
-    }
+    errorMessage.value =
+      err instanceof ApiError ? errorMessageFor(err.code, err.message) : errorMessageFor('UNKNOWN_ERROR')
   } finally {
     submitting.value = false
   }
@@ -63,61 +52,53 @@ async function onSubmit() {
 
 <template>
   <div class="grid min-h-full grid-cols-[minmax(0,1fr)] bg-white lg:grid-cols-2">
-    <!-- Brand panel (Figma 28:1404) -->
+    <!-- Brand panel (Figma 177:728) -->
     <section
-      class="flex min-w-0 flex-col items-center justify-center gap-8 bg-[linear-gradient(221.63deg,var(--color-brand-500)_0%,var(--color-brand-700)_100%)] p-6 text-white sm:gap-12"
+      class="flex min-w-0 flex-col items-center justify-center gap-10 rounded-b-[50px] bg-[linear-gradient(221.63deg,var(--color-brand-500)_0%,var(--color-brand-700)_100%)] p-6 text-white sm:gap-[60px] lg:rounded-r-[50px] lg:rounded-bl-none"
       aria-labelledby="brand-heading"
     >
-      <h2 id="brand-heading" class="sr-only">{{ t('app.name') }}</h2>
+      <h2 id="brand-heading" class="sr-only">WiDeWi CMS</h2>
 
       <img
         :src="logoUrl"
-        alt="WIDEWI"
-        class="w-64 max-w-full sm:w-[360px]"
-        width="900"
-        height="610"
+        alt="WIDEWI — Eksplorasi & Pemesanan Tiket Wisata"
+        class="w-72 max-w-full sm:w-[472px]"
+        width="944"
+        height="532"
         decoding="async"
       />
 
       <img
         :src="servicesUrl"
-        :alt="t('login.brandServices')"
-        class="w-full max-w-[440px]"
-        width="1200"
-        height="286"
+        alt="Layanan WIDEWI: wisata dan tiket"
+        class="w-[222px] max-w-full"
+        width="444"
+        height="242"
         decoding="async"
       />
 
-      <p class="w-full max-w-[30rem] text-center text-2xl leading-[1.2] sm:text-[32px]">
-        <span class="font-bold">WIDEWI</span>: {{ t('login.brandTagline') }}
-      </p>
+      <p class="w-full text-center text-xl leading-[1.2]">Satu Portal, Seribu Pengalaman Tak Terlupakan</p>
     </section>
 
-    <!-- Form panel (Figma 26:1215) -->
-    <section class="relative flex min-w-0 flex-col items-center justify-center gap-9 p-6 sm:p-10">
-      <div class="flex w-full justify-end lg:absolute lg:top-6 lg:right-6 lg:w-auto">
-        <LanguageSwitcher />
-      </div>
-
+    <!-- Form panel (Figma 177:716) -->
+    <section class="flex min-w-0 flex-col items-center justify-center gap-9 p-6 sm:p-10">
       <div class="flex w-full max-w-[400px] flex-col gap-2 text-center">
         <h1 class="text-3xl leading-[1.2] font-semibold tracking-[-0.8px] text-ink-900 sm:text-[40px]">
-          {{ t('login.welcome') }}
+          Selamat Datang
         </h1>
-        <p class="text-base leading-[1.2] text-ink-500">{{ t('login.subtitle') }}</p>
+        <p class="text-base leading-[1.2] text-ink-500">Silahkan login untuk masuk ke dalam sistem</p>
       </div>
 
       <p
         v-if="USE_MOCK_API"
         class="w-full max-w-[400px] rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800"
       >
-        {{ t('login.mockNotice') }}
+        Mode mock aktif. Backend tidak dihubungi; gunakan kredensial dari berkas .env Anda.
       </p>
 
       <form class="flex w-full max-w-[400px] flex-col gap-9" novalidate @submit.prevent="onSubmit">
         <div class="flex flex-col gap-2">
-          <label for="username" class="text-base leading-[1.4] text-ink-900">
-            {{ t('login.username') }}
-          </label>
+          <label for="username" class="text-base leading-[1.4] text-ink-900">Nama Pengguna</label>
           <input
             id="username"
             v-model="username"
@@ -125,15 +106,13 @@ async function onSubmit() {
             name="username"
             autocomplete="username"
             required
-            :placeholder="t('login.usernamePlaceholder')"
-            class="block w-full rounded-lg border border-ink-500 bg-white px-4 py-3 text-base leading-none text-ink-900 placeholder:italic placeholder:text-ink-300 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/30 focus:outline-none"
+            placeholder="Nama Pengguna"
+            class="block w-full rounded-lg border border-ink-500 bg-white px-4 py-3 text-base leading-[1.4] text-ink-900 placeholder:italic placeholder:text-ink-300 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/30 focus:outline-none"
           />
         </div>
 
-        <div class="flex flex-col gap-2">
-          <label for="password" class="text-base leading-[1.4] text-ink-900">
-            {{ t('login.password') }}
-          </label>
+        <div class="flex flex-col gap-2.5">
+          <label for="password" class="text-base leading-[1.4] text-ink-900">Kata Sandi</label>
           <div class="relative">
             <input
               id="password"
@@ -142,46 +121,18 @@ async function onSubmit() {
               name="password"
               autocomplete="current-password"
               required
-              :placeholder="t('login.passwordPlaceholder')"
-              class="block w-full rounded-lg border border-ink-500 bg-white py-3 pr-12 pl-4 text-base leading-none text-ink-900 placeholder:italic placeholder:text-ink-300 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/30 focus:outline-none"
+              placeholder="Kata Sandi"
+              class="block w-full rounded-lg border border-ink-500 bg-white py-3 pr-12 pl-4 text-base leading-[1.4] text-ink-900 placeholder:italic placeholder:text-ink-300 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/30 focus:outline-none"
             />
             <button
               type="button"
-              class="absolute inset-y-0 right-0 flex w-12 items-center justify-center text-ink-500 hover:text-brand-500 focus-visible:text-brand-500 focus-visible:outline-none"
-              :aria-label="showPassword ? t('login.hidePassword') : t('login.showPassword')"
+              class="absolute inset-y-0 right-0 flex w-12 items-center justify-center text-ink-900 hover:text-brand-500 focus-visible:text-brand-500 focus-visible:outline-none"
+              :class="{ 'text-brand-500': showPassword }"
+              :aria-label="showPassword ? 'Sembunyikan kata sandi' : 'Tampilkan kata sandi'"
               :aria-pressed="showPassword"
               @click="showPassword = !showPassword"
             >
-              <svg
-                v-if="showPassword"
-                class="size-5"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="1.8"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                aria-hidden="true"
-              >
-                <path d="M3 3l18 18" />
-                <path d="M10.6 10.6a2 2 0 0 0 2.8 2.8" />
-                <path d="M9.9 5.1A10.4 10.4 0 0 1 12 5c5 0 9 4.5 10 7-.5 1.2-1.5 2.7-3 4" />
-                <path d="M6.6 6.6C4.3 8 2.7 10.2 2 12c1 2.5 5 7 10 7 1.5 0 2.9-.4 4.1-1" />
-              </svg>
-              <svg
-                v-else
-                class="size-5"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="1.8"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                aria-hidden="true"
-              >
-                <path d="M2 12c1-2.5 5-7 10-7s9 4.5 10 7c-1 2.5-5 7-10 7S3 14.5 2 12z" />
-                <circle cx="12" cy="12" r="3" />
-              </svg>
+              <MaskIcon :src="iconEye" :size="16" />
             </button>
           </div>
         </div>
@@ -203,7 +154,7 @@ async function onSubmit() {
             <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
             <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 0 1 8-8v4a4 4 0 0 0-4 4H4z" />
           </svg>
-          {{ submitting ? t('login.submitting') : t('login.submit') }}
+          {{ submitting ? 'Sedang masuk…' : 'Masuk' }}
         </button>
       </form>
     </section>

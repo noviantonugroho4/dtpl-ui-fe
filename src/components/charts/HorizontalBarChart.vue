@@ -12,18 +12,20 @@ const props = withDefaults(
     step?: number
     rowHeight?: number
     barThickness?: number
+    /** Width reserved for the category labels on the left, in px. */
+    labelWidth?: number
   }>(),
-  { max: 100, step: 20, rowHeight: 31, barThickness: 20 },
+  { max: 100, step: 20, rowHeight: 31, barThickness: 20, labelWidth: 72 },
 )
 
 const container = ref<HTMLElement | null>(null)
 const width = useChartWidth(container)
 const active = ref<number | null>(null)
 
-const margin = { top: 1, right: 16, bottom: 20, left: 72 }
-const innerWidth = computed(() => Math.max(width.value - margin.left - margin.right, 1))
+const margin = computed(() => ({ top: 1, right: 16, bottom: 20, left: props.labelWidth }))
+const innerWidth = computed(() => Math.max(width.value - margin.value.left - margin.value.right, 1))
 const innerHeight = computed(() => props.bars.length * props.rowHeight)
-const height = computed(() => margin.top + innerHeight.value + margin.bottom)
+const height = computed(() => margin.value.top + innerHeight.value + margin.value.bottom)
 
 const ticks = computed(() => {
   const list: number[] = []
@@ -32,10 +34,10 @@ const ticks = computed(() => {
 })
 
 function x(v: number): number {
-  return margin.left + (Math.min(v, props.max) / props.max) * innerWidth.value
+  return margin.value.left + (Math.min(v, props.max) / props.max) * innerWidth.value
 }
 function rowTop(i: number): number {
-  return margin.top + i * props.rowHeight
+  return margin.value.top + i * props.rowHeight
 }
 function barY(i: number): number {
   return rowTop(i) + (props.rowHeight - props.barThickness) / 2

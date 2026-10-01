@@ -1,16 +1,14 @@
 <script setup lang="ts">
 import { watch } from 'vue'
 import { useRoute } from 'vue-router'
-import { useI18n } from 'vue-i18n'
 
+const APP_NAME = 'WiDeWi CMS'
 const route = useRoute()
-const { t, locale } = useI18n()
 
 watch(
-  () => [route.meta.titleKey, locale.value] as const,
-  ([titleKey]) => {
-    const appName = t('app.name')
-    document.title = titleKey ? `${t(titleKey)} · ${appName}` : appName
+  () => route.meta.title,
+  (title) => {
+    document.title = title ? `${title} · ${APP_NAME}` : APP_NAME
   },
   { immediate: true },
 )

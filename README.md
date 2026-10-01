@@ -5,7 +5,7 @@ DTPL - Tugas Kampus. Frontend for the WiDeWi CMS admin console.
 ## Stack
 
 - Vue 3 + TypeScript, built with Vite
-- Vue Router (auth guards), Pinia (auth store), vue-i18n (English / Bahasa Indonesia)
+- Vue Router (auth guards), Pinia (auth store); UI text in Bahasa Indonesia only
 - Tailwind CSS v4
 
 ## Getting started
@@ -44,7 +44,6 @@ src/
   api/         fetch client, typed endpoints, API types
   stores/      Pinia auth store (token + user persisted in localStorage)
   router/      routes and navigation guards
-  i18n/        vue-i18n setup and locale files (en, id)
   layouts/     AdminLayout: sidebar + topbar shell
   views/       LoginView, HomeView, NotFoundView
   components/  ProfileCard, LanguageSwitcher
@@ -83,7 +82,7 @@ npm run test:run       # single run
 npm run test:coverage  # single run with coverage report in coverage/
 ```
 
-Shared setup is in `src/test/setup.ts` (i18n plugin, storage reset) and `src/test/helpers.ts` (fixtures).
+Shared setup is in `src/test/setup.ts` (storage reset) and `src/test/helpers.ts` (fixtures).
 Tests run with fixed env values from `vitest.config.ts`, so a local `.env` does not affect results.
 
 ## CI and deployment (GitHub Actions → Vercel)

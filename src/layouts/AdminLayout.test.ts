@@ -12,7 +12,7 @@ vi.mock('vue-router', async () => {
   const { defineComponent, h } = await import('vue')
   return {
     useRouter: () => ({ replace: routerMocks.replace }),
-    useRoute: () => ref({ fullPath: '/dashboard', meta: { titleKey: 'nav.dashboard' } }).value,
+    useRoute: () => ref({ fullPath: '/dashboard', meta: { title: 'Dashboard' } }).value,
     RouterLink: defineComponent({ props: { to: null }, setup: (_, { slots }) => () => h('a', slots.default?.()) }),
     RouterView: defineComponent({ setup: () => () => h('div', 'page') }),
   }
@@ -43,11 +43,9 @@ describe('AdminLayout', () => {
     const labels = wrapper.findAll('nav a').map((a) => a.text())
     expect(labels).toEqual([
       'Dashboard',
-      'Tourist Attractions',
-      'Lodging',
-      'Restaurants',
-      'Ticket Bookings',
-      'Ratings & Comments',
+      'Daftar Destinasi Wisata',
+      'Pemesanan Ticket Wisata',
+      'Penilaian dan Komentar',
     ])
   })
 
@@ -70,10 +68,10 @@ describe('AdminLayout', () => {
     const aside = () => wrapper.find('aside')
     expect(aside().classes()).toContain('-translate-x-full')
 
-    await wrapper.find('button[aria-label="Open menu"]').trigger('click')
+    await wrapper.find('button[aria-label="Buka menu"]').trigger('click')
     expect(aside().classes()).toContain('translate-x-0')
 
-    await wrapper.find('button[aria-label="Close menu"]').trigger('click')
+    await wrapper.find('button[aria-label="Tutup menu"]').trigger('click')
     expect(aside().classes()).toContain('-translate-x-full')
   })
 })

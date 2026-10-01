@@ -6,7 +6,8 @@ declare module 'vue-router' {
   interface RouteMeta {
     requiresAuth?: boolean
     guestOnly?: boolean
-    titleKey?: string
+    /** Judul halaman untuk tab browser dan placeholder. */
+    title?: string
   }
 }
 
@@ -20,7 +21,7 @@ const router = createRouter({
       path: '/login',
       name: 'login',
       component: () => import('@/views/LoginView.vue'),
-      meta: { guestOnly: true, titleKey: 'login.title' },
+      meta: { guestOnly: true, title: 'Masuk' },
     },
     {
       path: '/',
@@ -32,37 +33,25 @@ const router = createRouter({
           path: 'dashboard',
           name: 'dashboard',
           component: () => import('@/views/DashboardView.vue'),
-          meta: { titleKey: 'nav.dashboard' },
+          meta: { title: 'Dashboard' },
         },
         {
-          path: 'objek-wisata',
+          path: 'destinasi-wisata',
           name: 'attractions',
           component: () => import('@/views/ComingSoonView.vue'),
-          meta: { titleKey: 'nav.attractions' },
-        },
-        {
-          path: 'penginapan',
-          name: 'lodging',
-          component: () => import('@/views/ComingSoonView.vue'),
-          meta: { titleKey: 'nav.lodging' },
-        },
-        {
-          path: 'rumah-makan',
-          name: 'restaurants',
-          component: () => import('@/views/ComingSoonView.vue'),
-          meta: { titleKey: 'nav.restaurants' },
+          meta: { title: 'Daftar Destinasi Wisata' },
         },
         {
           path: 'pemesanan-tiket',
           name: 'ticketBookings',
           component: () => import('@/views/ComingSoonView.vue'),
-          meta: { titleKey: 'nav.ticketBookings' },
+          meta: { title: 'Pemesanan Ticket Wisata' },
         },
         {
           path: 'penilaian',
           name: 'reviews',
           component: () => import('@/views/ComingSoonView.vue'),
-          meta: { titleKey: 'nav.reviews' },
+          meta: { title: 'Penilaian dan Komentar' },
         },
       ],
     },
@@ -70,6 +59,7 @@ const router = createRouter({
       path: '/:pathMatch(.*)*',
       name: 'not-found',
       component: () => import('@/views/NotFoundView.vue'),
+      meta: { title: 'Halaman tidak ditemukan' },
     },
   ],
 })

@@ -10,18 +10,18 @@ describe('DashboardView', () => {
     expect(wrapper.text()).toContain('Take a quick look at the overview')
 
     const captions = wrapper.findAll('table caption').map((c) => c.text())
-    expect(captions).toEqual(['Tourist attraction ticket bookings', 'Most visited villages'])
+    expect(captions).toEqual(['Jumlah Pemesanan Tiket Destinasi Wisata', 'Destinasi Wisata dengan Rating tertinggi'])
 
     const rows = wrapper.findAll('table tr').map((r) => r.findAll('th, td').map((c) => c.text()).join(' '))
     expect(rows).toContain('Jan 20')
     expect(rows).toContain('Mar 60')
-    expect(rows).toContain('Kep. Seribu 81')
-    expect(rows).toContain('Johar Baru 10')
+    expect(rows).toContain('Snorkling Kep. Seribu 81')
+    expect(rows).toContain('Snorkling Pahawang 10')
   })
 
   it('shows a tooltip when a bar receives focus', async () => {
     const wrapper = mount(DashboardView)
-    const hit = wrapper.find('rect[aria-label="Senen: 78"]')
+    const hit = wrapper.find('rect[aria-label="Pantai Mandiri: 78"]')
     expect(hit.exists()).toBe(true)
 
     await hit.trigger('focus')

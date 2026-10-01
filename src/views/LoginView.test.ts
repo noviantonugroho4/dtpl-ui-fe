@@ -45,7 +45,7 @@ describe('LoginView', () => {
     await wrapper.find('form').trigger('submit')
     await flushPromises()
 
-    expect(wrapper.find('[role="alert"]').text()).toBe('Username and password are required.')
+    expect(wrapper.find('[role="alert"]').text()).toBe('Nama pengguna dan kata sandi wajib diisi.')
     expect(api.login).not.toHaveBeenCalled()
   })
 
@@ -78,7 +78,7 @@ describe('LoginView', () => {
 
     await fillAndSubmit(wrapper, 'admin', 'wrong')
 
-    expect(wrapper.find('[role="alert"]').text()).toBe('Invalid username or password.')
+    expect(wrapper.find('[role="alert"]').text()).toBe('Nama pengguna atau kata sandi salah.')
     expect(routerMocks.replace).not.toHaveBeenCalled()
   })
 
@@ -102,7 +102,7 @@ describe('LoginView', () => {
 
     const button = wrapper.find('button[type="submit"]')
     expect(button.attributes('disabled')).toBeDefined()
-    expect(button.text()).toBe('Signing in…')
+    expect(button.text()).toBe('Sedang masuk…')
 
     resolveLogin({ data: { token: 'jwt', user: makeUser() } })
     await flushPromises()
@@ -118,6 +118,6 @@ describe('LoginView', () => {
 
   it('does not show the mock notice when mock mode is off', () => {
     const wrapper = mount(LoginView)
-    expect(wrapper.text()).not.toContain('Mock mode is on')
+    expect(wrapper.text()).not.toContain('Mode mock aktif')
   })
 })
