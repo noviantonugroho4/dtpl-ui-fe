@@ -46,3 +46,68 @@ export interface ErrorDetail {
 export interface ErrorResponse {
   error: ErrorDetail
 }
+
+// ---- Destinasi wisata (GET /api/v1/wisata) ----
+
+export type WisataType = 'wisata_rekreasi' | 'wisata_alam' | 'wisata_bahari' | 'wisata_budaya_dan_sejarah'
+
+export interface WisataImage {
+  id: string
+  wisataId: string
+  webdavUrl: string
+  webdavKey: string
+  mime: string
+  sizeBytes: number
+  sortOrder: number
+  createdAt: string
+}
+
+export interface WisataFacility {
+  id: string
+  facility: string
+  sortOrder: number
+}
+
+export interface WisataService {
+  id: string
+  serviceName: string
+  price: number
+  sortOrder: number
+}
+
+export interface Wisata {
+  id: string
+  nama: string
+  jenis: WisataType
+  kontakTelp: string
+  kontakWa?: string
+  provinsi: string
+  kecamatan: string
+  kelurahan: string
+  alamat: string
+  mapsLink: string
+  deskripsi?: string
+  hargaTiket: number
+  createdBy: number
+  createdAt: string
+  updatedAt: string
+  images: WisataImage[]
+  fasilitas: WisataFacility[]
+  services: WisataService[]
+}
+
+export interface PaginationMeta {
+  page: number
+  limit: number
+  total: number
+  totalPages: number
+}
+
+export interface WisataListResponse {
+  data: Wisata[]
+  meta: PaginationMeta
+}
+
+export interface WisataResponse {
+  data: Wisata
+}

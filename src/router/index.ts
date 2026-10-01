@@ -38,8 +38,33 @@ const router = createRouter({
         {
           path: 'destinasi-wisata',
           name: 'attractions',
-          component: () => import('@/views/ComingSoonView.vue'),
+          component: () => import('@/views/DestinasiWisataView.vue'),
           meta: { title: 'Daftar Destinasi Wisata' },
+        },
+        // Placeholders until the add/detail/edit/delete designs and endpoints exist.
+        {
+          path: 'destinasi-wisata/tambah',
+          name: 'attractions-create',
+          component: () => import('@/views/ComingSoonView.vue'),
+          meta: { title: 'Tambah Wisata' },
+        },
+        {
+          path: 'destinasi-wisata/:id',
+          name: 'attractions-detail',
+          component: () => import('@/views/ComingSoonView.vue'),
+          meta: { title: 'Detail Destinasi Wisata' },
+        },
+        {
+          path: 'destinasi-wisata/:id/ubah',
+          name: 'attractions-edit',
+          component: () => import('@/views/ComingSoonView.vue'),
+          meta: { title: 'Ubah Destinasi Wisata' },
+        },
+        {
+          path: 'destinasi-wisata/:id/hapus',
+          name: 'attractions-delete',
+          component: () => import('@/views/ComingSoonView.vue'),
+          meta: { title: 'Hapus Destinasi Wisata' },
         },
         {
           path: 'pemesanan-tiket',
