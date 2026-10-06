@@ -41,7 +41,7 @@ const router = createRouter({
           component: () => import('@/views/DestinasiWisataView.vue'),
           meta: { title: 'Daftar Destinasi Wisata' },
         },
-        // Placeholders until the detail/edit/delete designs and endpoints exist.
+        // Edit and delete stay placeholders until their designs and endpoints exist.
         {
           path: 'destinasi-wisata/tambah',
           name: 'attractions-create',
@@ -51,7 +51,7 @@ const router = createRouter({
         {
           path: 'destinasi-wisata/:id',
           name: 'attractions-detail',
-          component: () => import('@/views/ComingSoonView.vue'),
+          component: () => import('@/views/DestinasiWisataDetailView.vue'),
           meta: { title: 'Detail Destinasi Wisata' },
         },
         {

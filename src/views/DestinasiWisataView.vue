@@ -3,10 +3,12 @@ import { computed, onBeforeUnmount, ref } from 'vue'
 import { RouterLink } from 'vue-router'
 import { ApiError } from '@/api/client'
 import { errorMessageFor } from '@/api/errorMessages'
-import { listWisata, wisataTypeLabel } from '@/api/wisata'
-import type { PaginationMeta, Wisata, WisataType } from '@/api/types'
+import { listWisata } from '@/api/wisata'
+import type { PaginationMeta, Wisata } from '@/api/types'
+import { formatDate } from '@/utils/format'
 import { useFlashStore } from '@/stores/flash'
 import AppPagination from '@/components/AppPagination.vue'
+import WisataTypeTag from '@/components/WisataTypeTag.vue'
 import MaskIcon from '@/components/MaskIcon.vue'
 import iconPlus from '@/assets/icons/plus.svg'
 import iconSearch from '@/assets/icons/search.svg'
@@ -18,14 +20,6 @@ import iconTrash from '@/assets/icons/trash-2.svg'
 const PAGE_SIZE = 10
 /** API maximum; used once to collect the kecamatan options. */
 const OPTIONS_SAMPLE_LIMIT = 50
-
-/** Warna Tag Toggle per jenis wisata (Figma 177:1389 dst.). */
-const TAG_CLASSES: Record<WisataType, string> = {
-  wisata_bahari: 'bg-[#d0e9ff] text-[#166dba]',
-  wisata_alam: 'bg-[#d6ffd0] text-[#019606]',
-  wisata_rekreasi: 'bg-[#ffd0f6] text-[#dd2ee0]',
-  wisata_budaya_dan_sejarah: 'bg-[#fff8d0] text-[#927c00]',
-}
 
 const rows = ref<Wisata[]>([])
 const meta = ref<PaginationMeta>({ page: 1, limit: PAGE_SIZE, total: 0, totalPages: 0 })
@@ -44,18 +38,6 @@ const flash = useFlashStore()
 const notice = ref<string | null>(flash.take())
 let noticeTimer: ReturnType<typeof setTimeout> | null = null
 if (notice.value) noticeTimer = setTimeout(() => (notice.value = null), 6000)
-
-function tagClass(jenis: string): string {
-  return TAG_CLASSES[jenis as WisataType] ?? 'bg-canvas text-ink-900'
-}
-
-function formatDate(value: string): string {
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return value
-  const dd = String(date.getDate()).padStart(2, '0')
-  const mm = String(date.getMonth() + 1).padStart(2, '0')
-  return `${dd}-${mm}-${date.getFullYear()}`
-}
 
 const filteredRows = computed(() => {
   const term = search.value.trim().toLowerCase()
@@ -221,12 +203,7 @@ onBeforeUnmount(() => {
             <tr v-for="row in filteredRows" v-else :key="row.id" class="border-b-[0.5px] border-[#c6c6c8]">
               <td class="p-3 leading-none text-black/70 wrap-break-word">{{ row.nama }}</td>
               <td class="p-3">
-                <span
-                  class="inline-flex items-center rounded-lg px-2 py-0.5 leading-[1.2] tracking-[-0.36px] whitespace-nowrap"
-                  :class="tagClass(row.jenis)"
-                >
-                  {{ wisataTypeLabel(row.jenis) }}
-                </span>
+                <WisataTypeTag :jenis="row.jenis" />
               </td>
               <td class="p-3 leading-none font-light text-black">{{ row.kecamatan }}</td>
               <td class="p-3 leading-none font-light text-black">{{ formatDate(row.createdAt) }}</td>

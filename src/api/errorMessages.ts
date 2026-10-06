@@ -5,6 +5,7 @@ export const ERROR_MESSAGES: Record<string, string> = {
   UNAUTHENTICATED: 'Sesi Anda telah berakhir. Silakan masuk kembali.',
   INTERNAL_ERROR: 'Server mengalami kesalahan. Silakan coba lagi nanti.',
   VALIDATION_ERROR: 'Periksa kembali formulir lalu coba lagi.',
+  NOT_FOUND: 'Data tidak ditemukan.',
   NETWORK_ERROR: 'Tidak dapat terhubung ke server. Periksa koneksi Anda lalu coba lagi.',
   UNKNOWN_ERROR: 'Terjadi kesalahan. Silakan coba lagi.',
 }
