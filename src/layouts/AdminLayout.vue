@@ -32,8 +32,8 @@ const navSections: NavItem[][] = [
   [{ name: 'dashboard', label: 'Dashboard', icon: iconStar }],
   [{ name: 'attractions', label: 'Daftar Destinasi Wisata', icon: iconNavigation }],
   [
-    { name: 'ticketBookings', label: 'Pemesanan Ticket Wisata', icon: iconTag },
-    { name: 'reviews', label: 'Penilaian dan Komentar', icon: iconMessageSquare },
+    { name: 'ticketBookings', label: 'Daftar Pembelian Tiket', icon: iconTag },
+    { name: 'reviews', label: 'Daftar Penilaian Wisata', icon: iconMessageSquare },
   ],
 ]
 
@@ -136,7 +136,7 @@ async function onLogout() {
           class="inline-flex shrink-0 items-center justify-center gap-2 rounded-lg bg-brand-500 p-3 text-sm leading-none font-medium text-canvas transition hover:bg-brand-600 focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-60"
           @click="onLogout"
         >
-          Log out
+          Keluar
           <MaskIcon :src="iconLogOut" :size="16" />
         </button>
       </header>

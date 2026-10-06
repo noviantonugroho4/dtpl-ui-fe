@@ -30,3 +30,11 @@ body {
   --color-ink-200: #d9d9d9;
   --color-canvas: #f5f5f5;
 }
+
+/* CMS form controls (Figma Input Field / Select Field, 32px, 12px text). */
+@utility cms-input {
+  @apply h-8 rounded-lg border border-ink-200 bg-white px-4 text-xs leading-none text-ink-900 placeholder:text-ink-300 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/30 focus:outline-none disabled:cursor-not-allowed disabled:bg-canvas disabled:text-ink-500;
+}
+@utility cms-input--error {
+  @apply border-[#ff383c] focus:border-[#ff383c] focus:ring-[#ff383c]/30;
+}

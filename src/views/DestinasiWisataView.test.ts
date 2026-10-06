@@ -1,6 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
+import { createPinia, setActivePinia } from 'pinia'
 import { ApiError } from '@/api/client'
+import { useFlashStore } from '@/stores/flash'
 import * as wisataApi from '@/api/wisata'
 import type { Wisata } from '@/api/types'
 import DestinasiWisataView from './DestinasiWisataView.vue'
@@ -48,7 +50,17 @@ const listResponse = (data: Wisata[], meta = { page: 1, limit: 10, total: data.l
 
 describe('DestinasiWisataView', () => {
   beforeEach(() => {
+    setActivePinia(createPinia())
     api.listWisata.mockReset()
+  })
+
+  it('shows the success notice left by the create page once', async () => {
+    api.listWisata.mockResolvedValue(listResponse([]))
+    useFlashStore().show('Destinasi wisata berhasil ditambahkan.')
+    const wrapper = mount(DestinasiWisataView)
+    await flushPromises()
+    expect(wrapper.find('[role="status"]').text()).toContain('berhasil ditambahkan')
+    expect(useFlashStore().message).toBeNull()
   })
 
   it('renders rows with type tags, kecamatan and a dd-mm-yyyy date', async () => {
@@ -72,7 +84,7 @@ describe('DestinasiWisataView', () => {
     await flushPromises()
 
     const options = wrapper.findAll('#filter-kecamatan option').map((o) => o.text())
-    expect(options).toEqual(['Semua kecamatan', 'Kepulauan Seribu', 'Senen'])
+    expect(options).toEqual(['-- Pilih Kecamatan --', 'Kepulauan Seribu', 'Senen'])
 
     api.listWisata.mockClear()
     await wrapper.find('#filter-kecamatan').setValue('Senen')
@@ -90,7 +102,7 @@ describe('DestinasiWisataView', () => {
     expect(wrapper.find('tbody').text()).toContain('Gua Matu')
 
     await wrapper.find('#filter-search').setValue('zzz')
-    expect(wrapper.find('tbody').text()).toContain('Tidak ada destinasi yang cocok')
+    expect(wrapper.find('tbody').text()).toContain('Data tidak ditemukan!')
   })
 
   it('requests the next page from the pagination control', async () => {
@@ -122,7 +134,7 @@ describe('DestinasiWisataView', () => {
     api.listWisata.mockResolvedValue(listResponse([], { page: 1, limit: 10, total: 0, totalPages: 0 }))
     const wrapper = mount(DestinasiWisataView)
     await flushPromises()
-    expect(wrapper.find('tbody').text()).toContain('Belum ada destinasi wisata.')
+    expect(wrapper.find('tbody').text()).toContain('Belum ada data yang ditambahkan.')
     expect(wrapper.find('nav[aria-label="Navigasi halaman"]').exists()).toBe(false)
   })
 })

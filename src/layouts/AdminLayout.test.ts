@@ -44,8 +44,8 @@ describe('AdminLayout', () => {
     expect(labels).toEqual([
       'Dashboard',
       'Daftar Destinasi Wisata',
-      'Pemesanan Ticket Wisata',
-      'Penilaian dan Komentar',
+      'Daftar Pembelian Tiket',
+      'Daftar Penilaian Wisata',
     ])
   })
 
@@ -53,7 +53,7 @@ describe('AdminLayout', () => {
     api.logout.mockResolvedValue({ data: { logout: true } })
     const wrapper = mount(AdminLayout)
 
-    const logoutButton = wrapper.findAll('button').find((b) => b.text().includes('Log out'))
+    const logoutButton = wrapper.findAll('button').find((b) => b.text().includes('Keluar'))
     expect(logoutButton).toBeDefined()
     await logoutButton!.trigger('click')
     await flushPromises()

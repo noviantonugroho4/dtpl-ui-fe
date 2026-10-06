@@ -41,12 +41,12 @@ const router = createRouter({
           component: () => import('@/views/DestinasiWisataView.vue'),
           meta: { title: 'Daftar Destinasi Wisata' },
         },
-        // Placeholders until the add/detail/edit/delete designs and endpoints exist.
+        // Placeholders until the detail/edit/delete designs and endpoints exist.
         {
           path: 'destinasi-wisata/tambah',
           name: 'attractions-create',
-          component: () => import('@/views/ComingSoonView.vue'),
-          meta: { title: 'Tambah Wisata' },
+          component: () => import('@/views/DestinasiWisataCreateView.vue'),
+          meta: { title: 'Tambah Destinasi Wisata' },
         },
         {
           path: 'destinasi-wisata/:id',
@@ -70,13 +70,13 @@ const router = createRouter({
           path: 'pemesanan-tiket',
           name: 'ticketBookings',
           component: () => import('@/views/ComingSoonView.vue'),
-          meta: { title: 'Pemesanan Ticket Wisata' },
+          meta: { title: 'Daftar Pembelian Tiket' },
         },
         {
           path: 'penilaian',
           name: 'reviews',
           component: () => import('@/views/ComingSoonView.vue'),
-          meta: { title: 'Penilaian dan Komentar' },
+          meta: { title: 'Daftar Penilaian Wisata' },
         },
       ],
     },

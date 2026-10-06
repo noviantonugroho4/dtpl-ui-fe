@@ -5,12 +5,15 @@ const BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? '').replace(/\/$/, '')
 export class ApiError extends Error {
   readonly status: number
   readonly code: string
+  /** Per-field validation messages from the backend, keyed by field name. */
+  readonly details: Record<string, string>
 
-  constructor(status: number, code: string, message: string) {
+  constructor(status: number, code: string, message: string, details: Record<string, string> = {}) {
     super(message)
     this.name = 'ApiError'
     this.status = status
     this.code = code
+    this.details = details
   }
 }
 
@@ -19,7 +22,10 @@ export const UNKNOWN_ERROR = 'UNKNOWN_ERROR'
 
 interface RequestOptions {
   method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'
+  /** JSON body; serialised with the application/json content type. */
   body?: unknown
+  /** Multipart body; the browser sets the content type and boundary itself. */
+  formData?: FormData
   token?: string | null
   signal?: AbortSignal
 }
@@ -43,7 +49,7 @@ export async function request<T>(path: string, options: RequestOptions = {}): Pr
     response = await fetch(`${BASE_URL}${path}`, {
       method: options.method ?? 'GET',
       headers,
-      body: options.body !== undefined ? JSON.stringify(options.body) : undefined,
+      body: options.formData ?? (options.body !== undefined ? JSON.stringify(options.body) : undefined),
       signal: options.signal,
     })
   } catch (err) {
@@ -63,7 +69,7 @@ export async function request<T>(path: string, options: RequestOptions = {}): Pr
 
   if (!response.ok) {
     if (isErrorResponse(payload)) {
-      throw new ApiError(response.status, payload.error.code, payload.error.message)
+      throw new ApiError(response.status, payload.error.code, payload.error.message, payload.error.details ?? {})
     }
     throw new ApiError(response.status, UNKNOWN_ERROR, response.statusText || 'Request failed')
   }

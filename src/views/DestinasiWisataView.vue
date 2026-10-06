@@ -5,6 +5,7 @@ import { ApiError } from '@/api/client'
 import { errorMessageFor } from '@/api/errorMessages'
 import { listWisata, wisataTypeLabel } from '@/api/wisata'
 import type { PaginationMeta, Wisata, WisataType } from '@/api/types'
+import { useFlashStore } from '@/stores/flash'
 import AppPagination from '@/components/AppPagination.vue'
 import MaskIcon from '@/components/MaskIcon.vue'
 import iconPlus from '@/assets/icons/plus.svg'
@@ -37,6 +38,12 @@ const search = ref('')
 const kecamatanOptions = ref<string[]>([])
 
 let controller: AbortController | null = null
+
+/** Success notice handed over by the create page. */
+const flash = useFlashStore()
+const notice = ref<string | null>(flash.take())
+let noticeTimer: ReturnType<typeof setTimeout> | null = null
+if (notice.value) noticeTimer = setTimeout(() => (notice.value = null), 6000)
 
 function tagClass(jenis: string): string {
   return TAG_CLASSES[jenis as WisataType] ?? 'bg-canvas text-ink-900'
@@ -107,11 +114,23 @@ function onPageChange(next: number) {
 void load()
 void loadKecamatanOptions()
 
-onBeforeUnmount(() => controller?.abort())
+onBeforeUnmount(() => {
+  controller?.abort()
+  if (noticeTimer) clearTimeout(noticeTimer)
+})
 </script>
 
 <template>
   <div class="flex flex-col gap-4">
+    <p
+      v-if="notice"
+      role="status"
+      class="flex items-center justify-between gap-3 rounded-lg border border-green-200 bg-green-50 px-3 py-2 text-xs text-green-800"
+    >
+      {{ notice }}
+      <button type="button" class="font-semibold underline" aria-label="Tutup pemberitahuan" @click="notice = null">Tutup</button>
+    </p>
+
     <!-- Title card (Figma 177:1369) -->
     <section class="flex flex-wrap items-center gap-x-12 gap-y-3 rounded-[20px] bg-white p-4">
       <h2 class="text-xl leading-[1.2] font-semibold tracking-[-0.6px] text-ink-900">Daftar Destinasi Wisata</h2>
@@ -137,7 +156,7 @@ onBeforeUnmount(() => controller?.abort())
               class="block w-full appearance-none rounded-lg border border-ink-200 bg-white py-1 pr-9 pl-4 text-xs leading-none font-light text-black focus:border-brand-500 focus:ring-2 focus:ring-brand-500/30 focus:outline-none"
               @change="onKecamatanChange"
             >
-              <option value="">Semua kecamatan</option>
+              <option value="">-- Pilih Kecamatan --</option>
               <option v-for="option in kecamatanOptions" :key="option" :value="option">{{ option }}</option>
             </select>
             <span class="pointer-events-none absolute inset-y-0 right-3 flex items-center text-ink-900">
@@ -153,7 +172,7 @@ onBeforeUnmount(() => controller?.abort())
               id="filter-search"
               v-model="search"
               type="search"
-              placeholder="Cari nama destinasi"
+              placeholder="Cari"
               class="block w-full rounded-lg border border-ink-200 bg-white py-1 pr-10 pl-4 text-xs leading-none text-ink-900 placeholder:text-ink-300 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/30 focus:outline-none"
             />
             <span class="pointer-events-none absolute inset-y-0 right-4 flex items-center text-ink-900">
@@ -196,7 +215,7 @@ onBeforeUnmount(() => controller?.abort())
             </tr>
             <tr v-else-if="filteredRows.length === 0" class="border-b-[0.5px] border-[#c6c6c8]">
               <td colspan="5" class="p-3 text-ink-500">
-                {{ rows.length === 0 ? 'Belum ada destinasi wisata.' : 'Tidak ada destinasi yang cocok dengan pencarian.' }}
+                {{ rows.length === 0 ? 'Belum ada data yang ditambahkan.' : 'Data tidak ditemukan!' }}
               </td>
             </tr>
             <tr v-for="row in filteredRows" v-else :key="row.id" class="border-b-[0.5px] border-[#c6c6c8]">

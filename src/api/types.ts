@@ -41,6 +41,8 @@ export interface HealthResponse {
 export interface ErrorDetail {
   code: string
   message: string
+  /** Field name → validation message (VALIDATION_ERROR only). */
+  details?: Record<string, string>
 }
 
 export interface ErrorResponse {
@@ -110,4 +112,79 @@ export interface WisataListResponse {
 
 export interface WisataResponse {
   data: Wisata
+}
+
+// ---- Create destinasi wisata (POST /api/v1/wisata, POST /api/v1/wisata/upload) ----
+
+export interface WisataImageInput {
+  webdavUrl: string
+  webdavKey: string
+  mime: 'image/jpeg' | 'image/png'
+  sizeBytes: number
+  sortOrder?: number
+}
+
+export interface WisataServiceInput {
+  serviceName: string
+  price: number
+}
+
+export interface CreateWisataRequest {
+  nama: string
+  jenis: WisataType
+  kontakTelp: string
+  kontakWa?: string
+  provinsi: string
+  kecamatan: string
+  kelurahan: string
+  alamat: string
+  mapsLink: string
+  deskripsi?: string
+  hargaTiket: number
+  images: WisataImageInput[]
+  fasilitas?: string[]
+  services?: WisataServiceInput[]
+}
+
+export interface ImageUploadResponse {
+  data: {
+    webdavUrl: string
+    webdavKey: string
+    mime: string
+    sizeBytes: number
+  }
+}
+
+// ---- Location API proxy (GET /api/v1/location/*) ----
+
+export interface LocationShortItem {
+  id: string
+  name: string
+  postal_code?: string
+  has_path?: boolean
+  lat?: number
+  lng?: number
+}
+
+export interface LocationPlace extends LocationShortItem {
+  capital?: string
+  elv?: number
+  tz?: number
+  population?: number
+  total_area?: number
+}
+
+export interface LocationMeta {
+  updated_at: string
+  level: number
+}
+
+export interface LocationShortItemsResponse {
+  data: LocationShortItem[]
+  meta: LocationMeta
+}
+
+export interface LocationPlacesResponse {
+  data: LocationPlace[]
+  meta: LocationMeta
 }
