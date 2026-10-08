@@ -23,20 +23,21 @@ const TOP_RATED_DESTINATIONS = [
 </script>
 
 <template>
-  <div class="flex flex-col gap-4">
+  <div class="flex flex-col gap-4" data-testid="dashboard-page">
     <!-- Title card (Figma 177:862) -->
-    <section class="rounded-[20px] bg-white p-4">
-      <h2 class="text-xl leading-[1.2] font-semibold tracking-[-0.6px] text-ink-900">Dashboard</h2>
-      <p class="mt-2 text-xs leading-[1.2] text-ink-500">Take a quick look at the overview</p>
+    <section class="rounded-[20px] bg-white p-4" data-testid="dashboard-title-card">
+      <h2 class="text-xl leading-[1.2] font-semibold tracking-[-0.6px] text-ink-900" data-testid="dashboard-title">Dashboard</h2>
+      <p class="mt-2 text-xs leading-[1.2] text-ink-500" data-testid="dashboard-subtitle">Take a quick look at the overview</p>
     </section>
 
     <!-- Chart cards (Figma 177:864) -->
     <div class="grid gap-4 xl:grid-cols-2">
       <section class="min-w-0 rounded-[20px] bg-white p-3">
-        <LineChart title="Jumlah Pemesanan Tiket Destinasi Wisata" :points="TICKET_BOOKINGS_BY_MONTH" />
+        <LineChart title="Jumlah Pemesanan Tiket Destinasi Wisata" :points="TICKET_BOOKINGS_BY_MONTH" data-testid="dashboard-chart-ticket" />
       </section>
       <section class="min-w-0 rounded-[20px] bg-white p-3">
         <HorizontalBarChart
+          data-testid="dashboard-chart-rating"
           title="Destinasi Wisata dengan Rating tertinggi"
           :bars="TOP_RATED_DESTINATIONS"
           :label-width="136"

@@ -78,7 +78,8 @@ describe('DestinasiWisataDetailView', () => {
     const srcs = wrapper.findAll('img').map((img) => img.attributes('src'))
     expect(srcs).toEqual(['https://cdn/1.jpg', 'https://cdn/2.jpg'])
     expect(wrapper.find('a[href="https://wa.me/628123456789"]').exists()).toBe(true)
-    expect(wrapper.find('a[data-to*="attractions-edit"]').attributes('data-to')).toContain('"id":"id-1"')
+    expect(wrapper.find('[data-testid="wisata-detail-edit"]').attributes('data-to')).toContain('"id":"id-1"')
+    expect(wrapper.find('[data-testid="wisata-detail-harga"]').text()).toBe('Rp 25.000')
   })
 
   it('replaces an image that fails to load with a placeholder', async () => {
@@ -95,7 +96,7 @@ describe('DestinasiWisataDetailView', () => {
     api.getWisata.mockRejectedValue(new ApiError(404, 'NOT_FOUND', 'Destinasi wisata entry not found'))
     const wrapper = mount(DestinasiWisataDetailView)
     await flushPromises()
-    expect(wrapper.find('[role="alert"]').text()).toContain('Destinasi wisata tidak ditemukan.')
+    expect(wrapper.find('[data-testid="wisata-detail-not-found"]').text()).toContain('Destinasi wisata tidak ditemukan.')
     expect(wrapper.text()).not.toContain('Ubah')
   })
 

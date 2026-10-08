@@ -103,20 +103,20 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div class="flex flex-col gap-4">
-    <p
+  <div class="flex flex-col gap-4" data-testid="wisata-list-page">
+    <p data-testid="wisata-list-notice"
       v-if="notice"
       role="status"
       class="flex items-center justify-between gap-3 rounded-lg border border-green-200 bg-green-50 px-3 py-2 text-xs text-green-800"
     >
       {{ notice }}
-      <button type="button" class="font-semibold underline" aria-label="Tutup pemberitahuan" @click="notice = null">Tutup</button>
+      <button data-testid="wisata-list-notice-close" type="button" class="font-semibold underline" aria-label="Tutup pemberitahuan" @click="notice = null">Tutup</button>
     </p>
 
     <!-- Title card (Figma 177:1369) -->
-    <section class="flex flex-wrap items-center gap-x-12 gap-y-3 rounded-[20px] bg-white p-4">
-      <h2 class="text-xl leading-[1.2] font-semibold tracking-[-0.6px] text-ink-900">Daftar Destinasi Wisata</h2>
-      <RouterLink
+    <section data-testid="wisata-list-title-card" class="flex flex-wrap items-center gap-x-12 gap-y-3 rounded-[20px] bg-white p-4">
+      <h2 data-testid="wisata-list-title" class="text-xl leading-[1.2] font-semibold tracking-[-0.6px] text-ink-900">Daftar Destinasi Wisata</h2>
+      <RouterLink data-testid="wisata-list-add"
         :to="{ name: 'attractions-create' }"
         class="inline-flex items-center gap-2 rounded-lg bg-brand-500 px-3 py-2 text-xs leading-none font-medium text-canvas transition hover:bg-brand-600 focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 focus-visible:outline-none"
       >
@@ -132,7 +132,7 @@ onBeforeUnmount(() => {
         <div class="flex w-full flex-col gap-1 sm:w-[300px]">
           <label for="filter-kecamatan" class="text-xs leading-[1.4] text-ink-900">Kecamatan</label>
           <div class="relative">
-            <select
+            <select data-testid="wisata-filter-kecamatan"
               id="filter-kecamatan"
               v-model="kecamatan"
               class="block w-full appearance-none rounded-lg border border-ink-200 bg-white py-1 pr-9 pl-4 text-xs leading-none font-light text-black focus:border-brand-500 focus:ring-2 focus:ring-brand-500/30 focus:outline-none"
@@ -150,7 +150,7 @@ onBeforeUnmount(() => {
         <div class="flex w-full flex-col gap-1 sm:w-[337px]">
           <label for="filter-search" class="text-xs leading-none text-black">Cari</label>
           <div class="relative">
-            <input
+            <input data-testid="wisata-filter-search"
               id="filter-search"
               v-model="search"
               type="search"
@@ -166,7 +166,7 @@ onBeforeUnmount(() => {
 
       <!-- Table (Figma 177:1379) -->
       <div class="w-full overflow-x-auto">
-        <table class="w-full min-w-[720px] table-fixed border-collapse text-left text-xs">
+        <table data-testid="wisata-table" class="w-full min-w-[720px] table-fixed border-collapse text-left text-xs">
           <colgroup>
             <col />
             <col class="w-[173px]" />
@@ -184,46 +184,46 @@ onBeforeUnmount(() => {
             </tr>
           </thead>
           <tbody>
-            <tr v-if="loading" class="border-b-[0.5px] border-[#c6c6c8]">
+            <tr data-testid="wisata-table-loading" v-if="loading" class="border-b-[0.5px] border-[#c6c6c8]">
               <td colspan="5" class="p-3 text-ink-500" aria-live="polite">Memuat…</td>
             </tr>
-            <tr v-else-if="errorMessage" class="border-b-[0.5px] border-[#c6c6c8]">
+            <tr data-testid="wisata-table-error" v-else-if="errorMessage" class="border-b-[0.5px] border-[#c6c6c8]">
               <td colspan="5" class="p-3">
                 <div role="alert" class="flex flex-wrap items-center gap-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-red-700">
                   <span>{{ errorMessage }}</span>
-                  <button type="button" class="font-semibold underline" @click="load">Coba lagi</button>
+                  <button data-testid="wisata-table-retry" type="button" class="font-semibold underline" @click="load">Coba lagi</button>
                 </div>
               </td>
             </tr>
-            <tr v-else-if="filteredRows.length === 0" class="border-b-[0.5px] border-[#c6c6c8]">
+            <tr data-testid="wisata-table-empty" v-else-if="filteredRows.length === 0" class="border-b-[0.5px] border-[#c6c6c8]">
               <td colspan="5" class="p-3 text-ink-500">
                 {{ rows.length === 0 ? 'Belum ada data yang ditambahkan.' : 'Data tidak ditemukan!' }}
               </td>
             </tr>
-            <tr v-for="row in filteredRows" v-else :key="row.id" class="border-b-[0.5px] border-[#c6c6c8]">
-              <td class="p-3 leading-none text-black/70 wrap-break-word">{{ row.nama }}</td>
-              <td class="p-3">
+            <tr :data-testid="`wisata-row-${row.id}`" v-for="row in filteredRows" v-else :key="row.id" class="border-b-[0.5px] border-[#c6c6c8]">
+              <td :data-testid="`wisata-row-${row.id}-nama`" class="p-3 leading-none text-black/70 wrap-break-word">{{ row.nama }}</td>
+              <td class="p-3" :data-testid="`wisata-row-${row.id}-jenis`">
                 <WisataTypeTag :jenis="row.jenis" />
               </td>
-              <td class="p-3 leading-none font-light text-black">{{ row.kecamatan }}</td>
-              <td class="p-3 leading-none font-light text-black">{{ formatDate(row.createdAt) }}</td>
+              <td class="p-3 leading-none font-light text-black" :data-testid="`wisata-row-${row.id}-kecamatan`">{{ row.kecamatan }}</td>
+              <td class="p-3 leading-none font-light text-black" :data-testid="`wisata-row-${row.id}-tanggal`">{{ formatDate(row.createdAt) }}</td>
               <td class="p-3">
                 <div class="flex items-center gap-2.5 text-ink-900">
-                  <RouterLink
+                  <RouterLink :data-testid="`wisata-row-${row.id}-view`"
                     :to="{ name: 'attractions-detail', params: { id: row.id } }"
                     class="rounded hover:text-brand-500"
                     :aria-label="`Lihat ${row.nama}`"
                   >
                     <MaskIcon :src="iconEye" :size="16" />
                   </RouterLink>
-                  <RouterLink
+                  <RouterLink :data-testid="`wisata-row-${row.id}-edit`"
                     :to="{ name: 'attractions-edit', params: { id: row.id } }"
                     class="rounded hover:text-brand-500"
                     :aria-label="`Ubah ${row.nama}`"
                   >
                     <MaskIcon :src="iconEdit" :size="16" />
                   </RouterLink>
-                  <RouterLink
+                  <RouterLink :data-testid="`wisata-row-${row.id}-delete`"
                     :to="{ name: 'attractions-delete', params: { id: row.id } }"
                     class="rounded hover:text-red-600"
                     :aria-label="`Hapus ${row.nama}`"

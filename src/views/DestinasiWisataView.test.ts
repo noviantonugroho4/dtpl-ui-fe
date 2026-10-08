@@ -75,7 +75,8 @@ describe('DestinasiWisataView', () => {
       ['Snorkling Kep. Seribu', 'Wisata Bahari', 'Kepulauan Seribu', '24-09-2026'],
       ['Gua Matu', 'Wisata Budaya dan Sejarah', 'Senen', '24-09-2026'],
     ])
-    expect(wrapper.find('a[aria-label="Lihat Gua Matu"]').attributes('data-to')).toContain('"id":"id-2"')
+    expect(wrapper.find('[data-testid="wisata-row-id-2-view"]').attributes('data-to')).toContain('"id":"id-2"')
+    expect(wrapper.find('[data-testid="wisata-row-id-2-jenis"] [data-testid="wisata-type-tag"]').attributes('data-jenis')).toBe('wisata_budaya_dan_sejarah')
   })
 
   it('fills the kecamatan dropdown from the data and refetches with the filter', async () => {
@@ -111,7 +112,7 @@ describe('DestinasiWisataView', () => {
     await flushPromises()
 
     api.listWisata.mockClear()
-    await wrapper.find('button[aria-label="Halaman 2"]').trigger('click')
+    await wrapper.find('[data-testid="pagination-page-2"]').trigger('click')
     await flushPromises()
     expect(api.listWisata).toHaveBeenCalledWith({ page: 2, limit: 10, kecamatan: undefined }, expect.any(AbortSignal))
   })

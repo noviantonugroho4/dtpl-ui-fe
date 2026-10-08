@@ -46,7 +46,7 @@ function barY(i: number): number {
 
 <template>
   <figure class="flex h-full flex-col gap-4 px-4 py-3">
-    <figcaption class="flex flex-wrap items-center justify-center gap-1 px-2 text-xs text-black/70">
+    <figcaption data-testid="chart-legend" class="flex flex-wrap items-center justify-center gap-1 px-2 text-xs text-black/70">
       <span class="inline-block size-3 border border-white bg-brand-500" aria-hidden="true" />
       <span class="p-1">{{ title }}</span>
     </figcaption>
@@ -110,7 +110,7 @@ function barY(i: number): number {
             class="fill-brand-500"
             :fill-opacity="active === i ? 1 : 0.8"
           />
-          <rect
+          <rect :data-testid="`chart-bar-${bar.label}`"
             :x="margin.left"
             :y="rowTop(i)"
             :width="innerWidth"
@@ -134,7 +134,7 @@ function barY(i: number): number {
       />
     </div>
 
-    <table class="sr-only">
+    <table data-testid="chart-table" class="sr-only">
       <caption>{{ title }}</caption>
       <tbody>
         <tr v-for="bar in bars" :key="bar.label">

@@ -16,7 +16,7 @@ const tagClass = computed(() => TAG_CLASSES[props.jenis as WisataType] ?? 'bg-ca
 </script>
 
 <template>
-  <span
+  <span data-testid="wisata-type-tag" :data-jenis="jenis"
     class="inline-flex items-center rounded-lg px-2 py-0.5 text-xs leading-[1.2] tracking-[-0.36px] whitespace-nowrap"
     :class="tagClass"
   >

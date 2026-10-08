@@ -40,7 +40,7 @@ describe('AdminLayout', () => {
     const wrapper = mount(AdminLayout)
     expect(wrapper.text()).toContain('WiDeWi CMS')
     expect(wrapper.find('h1').text()).toBe('Website Destinasi Wisata')
-    const labels = wrapper.findAll('nav a').map((a) => a.text())
+    const labels = wrapper.findAll('[data-testid^="nav-"]').map((a) => a.text())
     expect(labels).toEqual([
       'Dashboard',
       'Daftar Destinasi Wisata',
@@ -53,9 +53,9 @@ describe('AdminLayout', () => {
     api.logout.mockResolvedValue({ data: { logout: true } })
     const wrapper = mount(AdminLayout)
 
-    const logoutButton = wrapper.findAll('button').find((b) => b.text().includes('Keluar'))
-    expect(logoutButton).toBeDefined()
-    await logoutButton!.trigger('click')
+    const logoutButton = wrapper.find('[data-testid="layout-logout"]')
+    expect(logoutButton.text()).toContain('Keluar')
+    await logoutButton.trigger('click')
     await flushPromises()
 
     expect(api.logout).toHaveBeenCalledWith('jwt-1')
@@ -68,10 +68,10 @@ describe('AdminLayout', () => {
     const aside = () => wrapper.find('aside')
     expect(aside().classes()).toContain('-translate-x-full')
 
-    await wrapper.find('button[aria-label="Buka menu"]').trigger('click')
+    await wrapper.find('[data-testid="layout-menu-toggle"]').trigger('click')
     expect(aside().classes()).toContain('translate-x-0')
 
-    await wrapper.find('button[aria-label="Tutup menu"]').trigger('click')
+    await wrapper.find('[data-testid="layout-sidebar-close"]').trigger('click')
     expect(aside().classes()).toContain('-translate-x-full')
   })
 })

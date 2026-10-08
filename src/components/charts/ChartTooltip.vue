@@ -3,7 +3,7 @@ defineProps<{ x: number; y: number; value: string; label: string }>()
 </script>
 
 <template>
-  <div
+  <div data-testid="chart-tooltip"
     role="status"
     class="pointer-events-none absolute z-10 -translate-x-1/2 -translate-y-full rounded-md bg-ink-900 px-2 py-1 text-xs whitespace-nowrap text-white shadow-md"
     :style="{ left: `${x}px`, top: `${y - 8}px` }"

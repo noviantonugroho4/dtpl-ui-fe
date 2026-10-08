@@ -385,11 +385,11 @@ void loadProvinces()
 </script>
 
 <template>
-  <div class="flex flex-col gap-4">
+  <div class="flex flex-col gap-4" data-testid="wisata-form-page">
     <!-- Title card (Figma 330:5753) -->
-    <section class="flex flex-wrap items-center gap-x-12 gap-y-3 rounded-[20px] bg-white p-4">
-      <h2 class="text-xl leading-[1.2] font-semibold tracking-[-0.6px] text-ink-900">Menambahkan Data Destinasi Wisata</h2>
-      <RouterLink
+    <section data-testid="wisata-form-title-card" class="flex flex-wrap items-center gap-x-12 gap-y-3 rounded-[20px] bg-white p-4">
+      <h2 data-testid="wisata-form-title" class="text-xl leading-[1.2] font-semibold tracking-[-0.6px] text-ink-900">Menambahkan Data Destinasi Wisata</h2>
+      <RouterLink data-testid="wisata-form-back"
         :to="{ name: 'attractions' }"
         class="ml-auto inline-flex items-center gap-2 rounded-lg border border-brand-500 bg-white px-3 py-2 text-xs leading-none font-medium text-brand-500 transition hover:bg-brand-50 focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 focus-visible:outline-none"
       >
@@ -399,10 +399,10 @@ void loadProvinces()
     </section>
 
     <!-- Form card (Figma 330:5756) -->
-    <form class="flex flex-col gap-3 rounded-[20px] bg-white px-4 py-8" novalidate @submit.prevent="onSubmit">
+    <form data-testid="wisata-form" class="flex flex-col gap-3 rounded-[20px] bg-white px-4 py-8" novalidate @submit.prevent="onSubmit">
       <p class="text-[10px] leading-[1.2] tracking-[-0.3px] text-[#ff383c]">Bagian yang memiliki tanda bintang (*) wajib diisi</p>
 
-      <p
+      <p data-testid="wisata-form-error"
         v-if="formError"
         role="alert"
         class="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700"
@@ -411,8 +411,8 @@ void loadProvinces()
       </p>
 
       <!-- Nama Wisata -->
-      <FormRow label="Nama Wisata" for="f-nama" required :hint="`Maks. ${WISATA_NAME_MAX} karakter`" :error="errors.nama">
-        <input
+      <FormRow testid="wisata-form-nama" label="Nama Wisata" for="f-nama" required :hint="`Maks. ${WISATA_NAME_MAX} karakter`" :error="errors.nama">
+        <input data-testid="wisata-form-nama"
           id="f-nama"
           v-model="form.nama"
           type="text"
@@ -424,14 +424,14 @@ void loadProvinces()
       </FormRow>
 
       <!-- Upload Gambar -->
-      <FormRow
+      <FormRow testid="wisata-form-images"
         label="Upload Gambar"
         required
         :hint="[`Maks. ${WISATA_MAX_IMAGES} gambar,`, 'ukuran maks 150 KB/gambar,', 'Format JPG dan PNG']"
         :error="errors.images"
       >
         <div class="flex flex-wrap gap-2.5">
-          <div
+          <div :data-testid="`wisata-form-image-${item.key}`"
             v-for="item in images"
             :key="item.key"
             class="relative h-[94px] w-[111px] overflow-hidden rounded-[10px] border border-ink-300 bg-canvas"
@@ -445,10 +445,10 @@ void loadProvinces()
               <span v-if="item.status === 'uploading'">Mengunggah…</span>
               <template v-else>
                 <span>{{ item.error }}</span>
-                <button type="button" class="font-semibold underline" @click="uploadItem(item)">Coba lagi</button>
+                <button :data-testid="`wisata-form-image-${item.key}-retry`" type="button" class="font-semibold underline" @click="uploadItem(item)">Coba lagi</button>
               </template>
             </div>
-            <button
+            <button :data-testid="`wisata-form-image-${item.key}-remove`"
               type="button"
               class="absolute top-1 right-1 flex size-5 items-center justify-center rounded-full bg-white/90 text-ink-900 shadow hover:text-red-600"
               :aria-label="`Hapus gambar ${item.file.name}`"
@@ -458,7 +458,7 @@ void loadProvinces()
             </button>
           </div>
 
-          <button
+          <button data-testid="wisata-form-image-add"
             v-if="images.length < WISATA_MAX_IMAGES"
             type="button"
             class="flex h-[94px] w-[111px] items-center justify-center rounded-[10px] border border-ink-300 text-ink-900 hover:border-brand-500 hover:text-brand-500 focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:outline-none"
@@ -474,16 +474,16 @@ void loadProvinces()
             multiple
             class="sr-only"
             aria-label="Berkas gambar"
-            data-testid="image-input"
+            data-testid="wisata-form-image-input"
             @change="onFilesSelected"
           />
         </div>
       </FormRow>
 
       <!-- Jenis Wisata -->
-      <FormRow label="Jenis Wisata" for="f-jenis" required :error="errors.jenis">
+      <FormRow testid="wisata-form-jenis" label="Jenis Wisata" for="f-jenis" required :error="errors.jenis">
         <div class="relative w-full max-w-[420px]">
-          <select
+          <select data-testid="wisata-form-jenis"
             id="f-jenis"
             v-model="form.jenis"
             class="cms-input w-full appearance-none pr-9"
@@ -499,12 +499,12 @@ void loadProvinces()
       </FormRow>
 
       <!-- Kontak -->
-      <FormRow label="Kontak" required :error="errors.telp ?? errors.wa">
+      <FormRow testid="wisata-form-kontak" label="Kontak" required :error="errors.telp ?? errors.wa">
         <div class="flex flex-wrap items-center gap-2.5">
           <label for="f-telp" class="text-xs tracking-[-0.36px] text-black">No. Telp</label>
           <div class="flex h-8 w-[183px] overflow-hidden rounded-lg border border-ink-200 bg-ink-200" :class="{ 'border-[#ff383c]': errors.telp }">
             <span class="flex items-center px-2 text-xs tracking-[-0.36px] text-black">+62</span>
-            <input
+            <input data-testid="wisata-form-telp"
               id="f-telp"
               v-model="form.telp"
               type="tel"
@@ -516,7 +516,7 @@ void loadProvinces()
           <label for="f-wa" class="text-xs tracking-[-0.36px] text-black">No. Whatsapp</label>
           <div class="flex h-8 w-[183px] overflow-hidden rounded-lg border border-ink-200 bg-ink-200" :class="{ 'border-[#ff383c]': errors.wa }">
             <span class="flex items-center px-2 text-xs tracking-[-0.36px] text-black">+62</span>
-            <input
+            <input data-testid="wisata-form-wa"
               id="f-wa"
               v-model="form.wa"
               type="tel"
@@ -529,9 +529,9 @@ void loadProvinces()
       </FormRow>
 
       <!-- Alamat + wilayah -->
-      <FormRow label="Alamat" for="f-alamat" required>
+      <FormRow testid="wisata-form-alamat" label="Alamat" for="f-alamat" required>
         <div class="flex flex-col gap-2.5">
-          <textarea
+          <textarea data-testid="wisata-form-alamat"
             id="f-alamat"
             v-model="form.alamat"
             placeholder="Alamat"
@@ -539,10 +539,10 @@ void loadProvinces()
             class="cms-input h-[75px] w-full max-w-[420px] resize-y py-2"
             :class="{ 'cms-input--error': errors.alamat }"
           />
-          <p v-if="errors.alamat" class="text-[10px] leading-[1.2] tracking-[-0.3px] text-[#ff383c]" role="alert">{{ errors.alamat }}</p>
-          <p v-if="locationError" role="alert" class="text-[10px] text-[#ff383c]">
+          <p data-testid="wisata-form-alamat-error" v-if="errors.alamat" class="text-[10px] leading-[1.2] tracking-[-0.3px] text-[#ff383c]" role="alert">{{ errors.alamat }}</p>
+          <p data-testid="wisata-form-location-error" v-if="locationError" role="alert" class="text-[10px] text-[#ff383c]">
             Daftar wilayah gagal dimuat: {{ locationError }}
-            <button type="button" class="ml-1 font-semibold underline" @click="loadProvinces">Coba lagi</button>
+            <button data-testid="wisata-form-location-retry" type="button" class="ml-1 font-semibold underline" @click="loadProvinces">Coba lagi</button>
           </p>
 
           <div v-for="field in ([
@@ -559,7 +559,7 @@ void loadProvinces()
             </label>
             <div class="flex w-full max-w-[216px] flex-col gap-1">
               <div class="relative">
-                <select
+                <select :data-testid="`wisata-form-${field.key}`"
                   :id="`f-${field.key}`"
                   v-model="form[field.key]"
                   class="cms-input w-full appearance-none pr-9"
@@ -574,7 +574,7 @@ void loadProvinces()
                   <MaskIcon :src="iconChevronDown" :size="16" />
                 </span>
               </div>
-              <p v-if="errors[field.key]" class="text-[10px] leading-[1.2] text-[#ff383c]" role="alert">{{ errors[field.key] }}</p>
+              <p :data-testid="`wisata-form-${field.key}-error`" v-if="errors[field.key]" class="text-[10px] leading-[1.2] text-[#ff383c]" role="alert">{{ errors[field.key] }}</p>
             </div>
           </div>
 
@@ -583,7 +583,7 @@ void loadProvinces()
               Kode Pos <span class="text-[#ff383c]" aria-hidden="true">*</span>
             </label>
             <div class="flex w-full max-w-[216px] flex-col gap-1">
-              <input
+              <input data-testid="wisata-form-kodepos"
                 id="f-kodepos"
                 v-model="form.kodePos"
                 type="text"
@@ -593,15 +593,15 @@ void loadProvinces()
                 class="cms-input w-full bg-canvas"
                 :class="{ 'cms-input--error': errors.kodePos }"
               />
-              <p v-if="errors.kodePos" class="text-[10px] leading-[1.2] text-[#ff383c]" role="alert">{{ errors.kodePos }}</p>
+              <p data-testid="wisata-form-kodepos-error" v-if="errors.kodePos" class="text-[10px] leading-[1.2] text-[#ff383c]" role="alert">{{ errors.kodePos }}</p>
             </div>
           </div>
         </div>
       </FormRow>
 
       <!-- Link Google Maps -->
-      <FormRow label="Link Google Maps" for="f-maps" required :error="errors.mapsLink">
-        <input
+      <FormRow testid="wisata-form-maps" label="Link Google Maps" for="f-maps" required :error="errors.mapsLink">
+        <input data-testid="wisata-form-maps"
           id="f-maps"
           v-model="form.mapsLink"
           type="url"
@@ -612,17 +612,17 @@ void loadProvinces()
       </FormRow>
 
       <!-- Fasilitas -->
-      <FormRow label="Fasilitas" required :hint="`Maks. ${WISATA_MAX_FACILITIES} Poin`" :error="errors.fasilitas">
+      <FormRow testid="wisata-form-fasilitas" label="Fasilitas" required :hint="`Maks. ${WISATA_MAX_FACILITIES} Poin`" :error="errors.fasilitas">
         <div class="flex flex-col gap-2.5">
           <div v-for="(_, index) in fasilitas" :key="index" class="flex w-full max-w-[420px] items-center gap-2.5">
-            <input
+            <input :data-testid="`wisata-form-fasilitas-${index}`"
               v-model="fasilitas[index]"
               type="text"
               placeholder="Fasilitas"
               :aria-label="`Fasilitas ${index + 1}`"
               class="cms-input min-w-0 flex-1"
             />
-            <button
+            <button :data-testid="`wisata-form-fasilitas-${index}-remove`"
               v-if="fasilitas.length > 1"
               type="button"
               class="text-ink-500 hover:text-red-600"
@@ -632,7 +632,7 @@ void loadProvinces()
               <MaskIcon :src="iconX" :size="16" />
             </button>
           </div>
-          <button
+          <button data-testid="wisata-form-fasilitas-add"
             v-if="fasilitas.length < WISATA_MAX_FACILITIES"
             type="button"
             class="flex size-7 items-center justify-center rounded-lg bg-brand-500 text-canvas hover:bg-brand-600"
@@ -645,8 +645,8 @@ void loadProvinces()
       </FormRow>
 
       <!-- Deskripsi -->
-      <FormRow label="Deskripsi" for="f-deskripsi" :hint="`Maks. ${WISATA_DESCRIPTION_MAX} karakter`" :error="errors.deskripsi">
-        <textarea
+      <FormRow testid="wisata-form-deskripsi" label="Deskripsi" for="f-deskripsi" :hint="`Maks. ${WISATA_DESCRIPTION_MAX} karakter`" :error="errors.deskripsi">
+        <textarea data-testid="wisata-form-deskripsi"
           id="f-deskripsi"
           v-model="form.deskripsi"
           placeholder="Deskripsi"
@@ -657,10 +657,10 @@ void loadProvinces()
       </FormRow>
 
       <!-- Harga Tiket -->
-      <FormRow label="Harga Tiket" for="f-harga" :error="errors.hargaTiket">
+      <FormRow testid="wisata-form-harga" label="Harga Tiket" for="f-harga" :error="errors.hargaTiket">
         <div class="flex h-8 w-[183px] overflow-hidden rounded-lg border border-ink-200 bg-ink-200" :class="{ 'border-[#ff383c]': errors.hargaTiket }">
           <span class="flex items-center px-2 text-xs tracking-[-0.36px] text-black">Rp.</span>
-          <input
+          <input data-testid="wisata-form-harga"
             id="f-harga"
             v-model="form.hargaTiket"
             type="text"
@@ -672,10 +672,10 @@ void loadProvinces()
       </FormRow>
 
       <!-- Service Objek Wisata -->
-      <FormRow label="Service Objek Wisata" :error="errors.services">
+      <FormRow testid="wisata-form-services" label="Service Objek Wisata" :error="errors.services">
         <div class="flex flex-col gap-2.5">
-          <div v-for="(service, index) in services" :key="service.key" class="flex flex-wrap items-center gap-2.5">
-            <input
+          <div :data-testid="`wisata-form-service-${index}`" v-for="(service, index) in services" :key="service.key" class="flex flex-wrap items-center gap-2.5">
+            <input :data-testid="`wisata-form-service-${index}-name`"
               v-model="service.name"
               type="text"
               placeholder="Service Objek Wisata"
@@ -685,7 +685,7 @@ void loadProvinces()
             <label class="text-xs tracking-[-0.36px] text-black sm:w-[85px]">Harga Service</label>
             <div class="flex h-8 w-[183px] overflow-hidden rounded-lg border border-ink-200 bg-ink-200">
               <span class="flex w-[34px] items-center justify-center text-xs tracking-[-0.36px] text-black">Rp.</span>
-              <input
+              <input :data-testid="`wisata-form-service-${index}-price`"
                 v-model="service.price"
                 type="text"
                 inputmode="numeric"
@@ -694,7 +694,7 @@ void loadProvinces()
                 class="min-w-0 flex-1 rounded-r-lg bg-white px-3 text-xs text-ink-900 placeholder:text-ink-300 focus:outline-none"
               />
             </div>
-            <button
+            <button :data-testid="`wisata-form-service-${index}-remove`"
               v-if="services.length > 1"
               type="button"
               class="text-ink-500 hover:text-red-600"
@@ -704,7 +704,7 @@ void loadProvinces()
               <MaskIcon :src="iconX" :size="16" />
             </button>
           </div>
-          <button
+          <button data-testid="wisata-form-service-add"
             type="button"
             class="flex size-7 items-center justify-center rounded-lg bg-brand-500 text-canvas hover:bg-brand-600"
             aria-label="Tambah layanan"
@@ -717,7 +717,7 @@ void loadProvinces()
 
       <!-- Simpan -->
       <div class="pt-[18px]">
-        <button
+        <button data-testid="wisata-form-submit"
           type="submit"
           :disabled="!canSubmit"
           class="inline-flex items-center gap-2 rounded-lg bg-brand-500 px-3 py-2 text-xs leading-none font-medium text-canvas transition hover:bg-brand-600 focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:bg-ink-200 disabled:text-ink-500"

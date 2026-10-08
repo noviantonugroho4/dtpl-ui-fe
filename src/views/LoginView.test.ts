@@ -100,7 +100,7 @@ describe('LoginView', () => {
     await wrapper.find('#password').setValue('pw')
     await wrapper.find('form').trigger('submit')
 
-    const button = wrapper.find('button[type="submit"]')
+    const button = wrapper.find('[data-testid="login-submit"]')
     expect(button.attributes('disabled')).toBeDefined()
     expect(button.text()).toBe('Sedang masuk…')
 
@@ -112,7 +112,7 @@ describe('LoginView', () => {
   it('toggles password visibility', async () => {
     const wrapper = mount(LoginView)
     expect(wrapper.find('#password').attributes('type')).toBe('password')
-    await wrapper.find('button[type="button"]').trigger('click')
+    await wrapper.find('[data-testid="login-password-toggle"]').trigger('click')
     expect(wrapper.find('#password').attributes('type')).toBe('text')
   })
 

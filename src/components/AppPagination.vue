@@ -33,8 +33,8 @@ function go(page: number) {
 </script>
 
 <template>
-  <nav class="flex flex-wrap items-center justify-center gap-2 text-xs" aria-label="Navigasi halaman">
-    <button
+  <nav data-testid="pagination" class="flex flex-wrap items-center justify-center gap-2 text-xs" aria-label="Navigasi halaman">
+    <button data-testid="pagination-prev"
       type="button"
       class="flex items-center gap-2 rounded-lg px-3 py-2 leading-none text-ink-900 hover:bg-canvas disabled:cursor-not-allowed disabled:text-ink-500 disabled:opacity-50 disabled:hover:bg-transparent"
       :disabled="!hasPrev"
@@ -46,8 +46,8 @@ function go(page: number) {
 
     <ul class="flex items-center gap-2">
       <li v-for="(item, index) in items" :key="index">
-        <span v-if="item === 'gap'" class="block px-4 py-2 leading-[1.4] font-bold text-black" aria-hidden="true">...</span>
-        <button
+        <span data-testid="pagination-gap" v-if="item === 'gap'" class="block px-4 py-2 leading-[1.4] font-bold text-black" aria-hidden="true">...</span>
+        <button :data-testid="`pagination-page-${item}`"
           v-else
           type="button"
           class="min-w-8 rounded-lg px-3 py-2 leading-none"
@@ -61,7 +61,7 @@ function go(page: number) {
       </li>
     </ul>
 
-    <button
+    <button data-testid="pagination-next"
       type="button"
       class="flex items-center gap-2 rounded-lg px-3 py-2 leading-none text-ink-900 hover:bg-canvas disabled:cursor-not-allowed disabled:text-ink-500 disabled:opacity-50 disabled:hover:bg-transparent"
       :disabled="!hasNext"

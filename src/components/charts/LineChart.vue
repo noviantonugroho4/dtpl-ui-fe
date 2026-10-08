@@ -61,7 +61,7 @@ function onPointerMove(event: PointerEvent) {
 
 <template>
   <figure class="flex h-full flex-col gap-2.5 py-3">
-    <figcaption class="flex flex-wrap items-center justify-center gap-1 px-2 text-xs text-black/70">
+    <figcaption data-testid="chart-legend" class="flex flex-wrap items-center justify-center gap-1 px-2 text-xs text-black/70">
       <span class="relative inline-block size-4" aria-hidden="true">
         <span class="absolute top-[7px] left-0 h-0.5 w-4 bg-brand-500" />
         <span class="absolute top-[4px] left-[4px] size-2 rounded-full border-2 border-brand-500 bg-white" />
@@ -133,7 +133,7 @@ function onPointerMove(event: PointerEvent) {
             class="stroke-brand-500"
             stroke-width="1.5"
           />
-          <circle
+          <circle :data-testid="`chart-point-${p.label}`"
             :cx="x(i)"
             :cy="y(p.value)"
             r="12"
@@ -155,7 +155,7 @@ function onPointerMove(event: PointerEvent) {
       />
     </div>
 
-    <table class="sr-only">
+    <table data-testid="chart-table" class="sr-only">
       <caption>{{ title }}</caption>
       <tbody>
         <tr v-for="p in points" :key="p.label">

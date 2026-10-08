@@ -9,11 +9,13 @@ defineProps<{
   required?: boolean
   hint?: string | string[]
   error?: string | null
+  /** Automation hook: the row gets `<testid>-row`, the error line `<testid>-error`. */
+  testid?: string
 }>()
 </script>
 
 <template>
-  <div class="flex w-full flex-col gap-1 sm:flex-row sm:gap-2.5">
+  <div class="flex w-full flex-col gap-1 sm:flex-row sm:gap-2.5" :data-testid="testid ? `${testid}-row` : undefined">
     <div class="flex shrink-0 flex-col sm:w-[185px] sm:pt-2">
       <label v-if="$props.for" :for="$props.for" class="text-xs leading-[1.2] tracking-[-0.36px] text-black">
         {{ label }} <span v-if="required" class="text-[#ff383c]" aria-hidden="true">*</span>
@@ -33,7 +35,7 @@ defineProps<{
     </div>
     <div class="flex min-w-0 flex-1 flex-col gap-1">
       <slot />
-      <p v-if="error" class="text-[10px] leading-[1.2] tracking-[-0.3px] text-[#ff383c]" role="alert">{{ error }}</p>
+      <p v-if="error" class="text-[10px] leading-[1.2] tracking-[-0.3px] text-[#ff383c]" role="alert" :data-testid="testid ? `${testid}-error` : undefined">{{ error }}</p>
     </div>
   </div>
 </template>

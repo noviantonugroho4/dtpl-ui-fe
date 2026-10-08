@@ -51,15 +51,15 @@ async function onSubmit() {
 </script>
 
 <template>
-  <div class="grid min-h-full grid-cols-[minmax(0,1fr)] bg-white lg:grid-cols-2">
+  <div data-testid="login-page" class="grid min-h-full grid-cols-[minmax(0,1fr)] bg-white lg:grid-cols-2">
     <!-- Brand panel (Figma 177:728) -->
-    <section
+    <section data-testid="login-brand-panel"
       class="flex min-w-0 flex-col items-center justify-center gap-10 rounded-b-[50px] bg-[linear-gradient(221.63deg,var(--color-brand-500)_0%,var(--color-brand-700)_100%)] p-6 text-white sm:gap-[60px] lg:rounded-r-[50px] lg:rounded-bl-none"
       aria-labelledby="brand-heading"
     >
       <h2 id="brand-heading" class="sr-only">WiDeWi CMS</h2>
 
-      <img
+      <img data-testid="login-logo"
         :src="logoUrl"
         alt="WIDEWI — Eksplorasi & Pemesanan Tiket Wisata"
         class="w-72 max-w-full sm:w-[472px]"
@@ -68,7 +68,7 @@ async function onSubmit() {
         decoding="async"
       />
 
-      <img
+      <img data-testid="login-services"
         :src="servicesUrl"
         alt="Layanan WIDEWI: wisata dan tiket"
         class="w-[222px] max-w-full"
@@ -77,29 +77,29 @@ async function onSubmit() {
         decoding="async"
       />
 
-      <p class="w-full text-center text-xl leading-[1.2]">Satu Portal, Seribu Pengalaman Tak Terlupakan</p>
+      <p data-testid="login-tagline" class="w-full text-center text-xl leading-[1.2]">Satu Portal, Seribu Pengalaman Tak Terlupakan</p>
     </section>
 
     <!-- Form panel (Figma 177:716) -->
-    <section class="flex min-w-0 flex-col items-center justify-center gap-9 p-6 sm:p-10">
+    <section data-testid="login-form-panel" class="flex min-w-0 flex-col items-center justify-center gap-9 p-6 sm:p-10">
       <div class="flex w-full max-w-[400px] flex-col gap-2 text-center">
-        <h1 class="text-3xl leading-[1.2] font-semibold tracking-[-0.8px] text-ink-900 sm:text-[40px]">
+        <h1 data-testid="login-title" class="text-3xl leading-[1.2] font-semibold tracking-[-0.8px] text-ink-900 sm:text-[40px]">
           Selamat Datang
         </h1>
-        <p class="text-base leading-[1.2] text-ink-500">Silahkan login untuk masuk ke dalam sistem</p>
+        <p data-testid="login-subtitle" class="text-base leading-[1.2] text-ink-500">Silahkan login untuk masuk ke dalam sistem</p>
       </div>
 
-      <p
+      <p data-testid="login-mock-notice"
         v-if="USE_MOCK_API"
         class="w-full max-w-[400px] rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800"
       >
         Mode mock aktif. Backend tidak dihubungi; gunakan kredensial dari berkas .env Anda.
       </p>
 
-      <form class="flex w-full max-w-[400px] flex-col gap-9" novalidate @submit.prevent="onSubmit">
+      <form data-testid="login-form" class="flex w-full max-w-[400px] flex-col gap-9" novalidate @submit.prevent="onSubmit">
         <div class="flex flex-col gap-2">
           <label for="username" class="text-base leading-[1.4] text-ink-900">Nama Pengguna</label>
-          <input
+          <input data-testid="login-username"
             id="username"
             v-model="username"
             type="text"
@@ -114,7 +114,7 @@ async function onSubmit() {
         <div class="flex flex-col gap-2.5">
           <label for="password" class="text-base leading-[1.4] text-ink-900">Kata Sandi</label>
           <div class="relative">
-            <input
+            <input data-testid="login-password"
               id="password"
               v-model="password"
               :type="showPassword ? 'text' : 'password'"
@@ -124,7 +124,7 @@ async function onSubmit() {
               placeholder="Kata Sandi"
               class="block w-full rounded-lg border border-ink-500 bg-white py-3 pr-12 pl-4 text-base leading-[1.4] text-ink-900 placeholder:italic placeholder:text-ink-300 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/30 focus:outline-none"
             />
-            <button
+            <button data-testid="login-password-toggle"
               type="button"
               class="absolute inset-y-0 right-0 flex w-12 items-center justify-center text-ink-900 hover:text-brand-500 focus-visible:text-brand-500 focus-visible:outline-none"
               :class="{ 'text-brand-500': showPassword }"
@@ -137,7 +137,7 @@ async function onSubmit() {
           </div>
         </div>
 
-        <p
+        <p data-testid="login-error"
           v-if="errorMessage"
           role="alert"
           class="-my-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700"
@@ -145,7 +145,7 @@ async function onSubmit() {
           {{ errorMessage }}
         </p>
 
-        <button
+        <button data-testid="login-submit"
           type="submit"
           :disabled="submitting"
           class="inline-flex h-[52px] w-full items-center justify-center gap-2 rounded-lg border border-brand-500 bg-brand-500 p-3 text-base leading-none font-extrabold text-white transition hover:bg-brand-600 focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-60"

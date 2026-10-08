@@ -54,7 +54,7 @@ async function pickLocationChain(wrapper: ReturnType<typeof mount>) {
 }
 
 async function addImage(wrapper: ReturnType<typeof mount>, file = new File(['x'], 'foto.jpg', { type: 'image/jpeg' })) {
-  const input = wrapper.find('[data-testid="image-input"]')
+  const input = wrapper.find('[data-testid="wisata-form-image-input"]')
   Object.defineProperty(input.element, 'files', { value: [file], configurable: true })
   await input.trigger('change')
   await flushPromises()
@@ -98,9 +98,9 @@ describe('DestinasiWisataCreateView', () => {
   it('keeps Simpan disabled until the required fields have input', async () => {
     const wrapper = mount(DestinasiWisataCreateView)
     await flushPromises()
-    expect(wrapper.find('button[type="submit"]').attributes('disabled')).toBeDefined()
+    expect(wrapper.find('[data-testid="wisata-form-submit"]').attributes('disabled')).toBeDefined()
     await fillValidForm(wrapper)
-    expect(wrapper.find('button[type="submit"]').attributes('disabled')).toBeUndefined()
+    expect(wrapper.find('[data-testid="wisata-form-submit"]').attributes('disabled')).toBeUndefined()
   })
 
   it('shows inline validation messages and does not submit invalid input', async () => {
@@ -115,6 +115,8 @@ describe('DestinasiWisataCreateView', () => {
     await flushPromises()
 
     const text = wrapper.text()
+    expect(wrapper.find('[data-testid="wisata-form-kontak-error"]').text()).toBe('Nomor telepon harus 8–13 digit setelah +62.')
+    expect(wrapper.find('[data-testid="wisata-form-maps-error"]').exists()).toBe(true)
     expect(text).toContain('Nomor telepon harus 8–13 digit setelah +62.')
     expect(text).toContain('Masukkan tautan Google Maps yang valid.')
     expect(text).toContain('Deskripsi maksimal 500 karakter.')
