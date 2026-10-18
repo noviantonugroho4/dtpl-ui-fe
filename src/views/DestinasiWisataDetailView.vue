@@ -5,9 +5,8 @@ import { ApiError } from '@/api/client'
 import { errorMessageFor } from '@/api/errorMessages'
 import { getWisata } from '@/api/wisata'
 import type { Wisata } from '@/api/types'
-import { formatDateTime, formatRupiah } from '@/utils/format'
 import MaskIcon from '@/components/MaskIcon.vue'
-import WisataTypeTag from '@/components/WisataTypeTag.vue'
+import WisataDetailSummary from '@/components/WisataDetailSummary.vue'
 import iconCornerUpLeft from '@/assets/icons/corner-up-left.svg'
 import iconEdit from '@/assets/icons/edit.svg'
 
@@ -17,8 +16,6 @@ const item = ref<Wisata | null>(null)
 const loading = ref(true)
 const notFound = ref(false)
 const errorMessage = ref<string | null>(null)
-/** Image ids whose URL failed to load; shown as a placeholder instead. */
-const brokenImages = ref(new Set<string>())
 
 const id = computed(() => String(route.params.id ?? ''))
 
@@ -37,17 +34,6 @@ async function load() {
   }
 }
 
-const images = computed(() => [...(item.value?.images ?? [])].sort((a, b) => a.sortOrder - b.sortOrder))
-const facilities = computed(() => [...(item.value?.fasilitas ?? [])].sort((a, b) => a.sortOrder - b.sortOrder))
-const services = computed(() => [...(item.value?.services ?? [])].sort((a, b) => a.sortOrder - b.sortOrder))
-
-function phoneHref(value: string): string {
-  return `tel:${value}`
-}
-function whatsappHref(value: string): string {
-  return `https://wa.me/${value.replace(/\D/g, '')}`
-}
-
 watch(id, () => void load(), { immediate: true })
 </script>
 
@@ -55,19 +41,21 @@ watch(id, () => void load(), { immediate: true })
   <div class="flex flex-col gap-4" data-testid="wisata-detail-page">
     <!-- Title card -->
     <section class="flex flex-wrap items-center gap-x-12 gap-y-3 rounded-[20px] bg-white p-4">
-      <h2 data-testid="wisata-detail-title" class="text-xl leading-[1.2] font-semibold tracking-[-0.6px] text-ink-900">Detail Destinasi Wisata</h2>
+      <h2 class="text-xl leading-[1.2] font-semibold tracking-[-0.6px] text-ink-900" data-testid="wisata-detail-title">Detail Destinasi Wisata</h2>
       <div class="ml-auto flex flex-wrap items-center gap-2.5">
-        <RouterLink data-testid="wisata-detail-back"
+        <RouterLink
           :to="{ name: 'attractions' }"
           class="inline-flex items-center gap-2 rounded-lg border border-brand-500 bg-white px-3 py-2 text-xs leading-none font-medium text-brand-500 transition hover:bg-brand-50 focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 focus-visible:outline-none"
+          data-testid="wisata-detail-back"
         >
           <MaskIcon :src="iconCornerUpLeft" :size="16" />
           Kembali
         </RouterLink>
-        <RouterLink data-testid="wisata-detail-edit"
+        <RouterLink
           v-if="item"
           :to="{ name: 'attractions-edit', params: { id: item.id } }"
           class="inline-flex items-center gap-2 rounded-lg bg-brand-500 px-3 py-2 text-xs leading-none font-medium text-canvas transition hover:bg-brand-600 focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 focus-visible:outline-none"
+          data-testid="wisata-detail-edit"
         >
           Ubah
           <MaskIcon :src="iconEdit" :size="16" />
@@ -77,129 +65,24 @@ watch(id, () => void load(), { immediate: true })
 
     <!-- Detail card -->
     <section class="rounded-[20px] bg-white px-4 py-8">
-      <p data-testid="wisata-detail-loading" v-if="loading" class="text-xs text-ink-500" aria-live="polite">Memuat…</p>
+      <p v-if="loading" class="text-xs text-ink-500" aria-live="polite" data-testid="wisata-detail-loading">Memuat…</p>
 
-      <div data-testid="wisata-detail-not-found" v-else-if="notFound" class="flex flex-col items-start gap-3">
+      <div v-else-if="notFound" class="flex flex-col items-start gap-3" data-testid="wisata-detail-not-found">
         <p role="alert" class="text-sm text-ink-900">Destinasi wisata tidak ditemukan.</p>
         <p class="text-xs text-ink-500">Data mungkin sudah dihapus atau tautannya salah.</p>
       </div>
 
-      <div data-testid="wisata-detail-error" v-else-if="errorMessage" role="alert" class="flex flex-wrap items-center gap-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+      <div
+        v-else-if="errorMessage"
+        role="alert"
+        class="flex flex-wrap items-center gap-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700"
+        data-testid="wisata-detail-error"
+      >
         <span>{{ errorMessage }}</span>
-        <button data-testid="wisata-detail-retry" type="button" class="font-semibold underline" @click="load">Coba lagi</button>
+        <button type="button" class="font-semibold underline" data-testid="wisata-detail-retry" @click="load">Coba lagi</button>
       </div>
 
-      <dl data-testid="wisata-detail" v-else-if="item" class="flex flex-col gap-4">
-        <!-- Gambar -->
-        <div class="flex flex-col gap-1 sm:flex-row sm:gap-2.5">
-          <dt class="shrink-0 text-xs leading-[1.2] tracking-[-0.36px] text-black sm:w-[185px] sm:pt-1">Gambar</dt>
-          <dd data-testid="wisata-detail-images" class="flex min-w-0 flex-1 flex-wrap gap-2.5">
-            <template v-if="images.length">
-              <figure :data-testid="`wisata-detail-image-${image.id}`"
-                v-for="image in images"
-                :key="image.id"
-                class="flex h-[94px] w-[111px] items-center justify-center overflow-hidden rounded-[10px] border border-ink-300 bg-canvas"
-              >
-                <img
-                  v-if="!brokenImages.has(image.id)"
-                  :src="image.webdavUrl"
-                  :alt="`${item.nama} ${image.sortOrder + 1}`"
-                  class="size-full object-cover"
-                  loading="lazy"
-                  @error="brokenImages.add(image.id)"
-                />
-                <figcaption v-else class="px-2 text-center text-[9px] leading-[1.3] text-ink-500">Gambar tidak dapat dimuat</figcaption>
-              </figure>
-            </template>
-            <span v-else class="text-xs text-ink-500">Tidak ada gambar.</span>
-          </dd>
-        </div>
-
-        <div class="flex flex-col gap-1 sm:flex-row sm:gap-2.5">
-          <dt class="shrink-0 text-xs leading-[1.2] tracking-[-0.36px] text-black sm:w-[185px]">Nama Wisata</dt>
-          <dd data-testid="wisata-detail-nama" class="min-w-0 flex-1 text-sm font-semibold text-ink-900">{{ item.nama }}</dd>
-        </div>
-
-        <div class="flex flex-col gap-1 sm:flex-row sm:gap-2.5">
-          <dt class="shrink-0 text-xs leading-[1.2] tracking-[-0.36px] text-black sm:w-[185px]">Jenis Wisata</dt>
-          <dd data-testid="wisata-detail-jenis" class="min-w-0 flex-1"><WisataTypeTag :jenis="item.jenis" /></dd>
-        </div>
-
-        <div class="flex flex-col gap-1 sm:flex-row sm:gap-2.5">
-          <dt class="shrink-0 text-xs leading-[1.2] tracking-[-0.36px] text-black sm:w-[185px]">Kontak</dt>
-          <dd class="flex min-w-0 flex-1 flex-col gap-1 text-xs text-ink-900">
-            <span>No. Telp: <a data-testid="wisata-detail-telp" :href="phoneHref(item.kontakTelp)" class="text-brand-500 underline">{{ item.kontakTelp }}</a></span>
-            <span v-if="item.kontakWa">
-              No. Whatsapp:
-              <a data-testid="wisata-detail-wa" :href="whatsappHref(item.kontakWa)" target="_blank" rel="noopener" class="text-brand-500 underline">{{ item.kontakWa }}</a>
-            </span>
-          </dd>
-        </div>
-
-        <div class="flex flex-col gap-1 sm:flex-row sm:gap-2.5">
-          <dt class="shrink-0 text-xs leading-[1.2] tracking-[-0.36px] text-black sm:w-[185px]">Alamat</dt>
-          <dd class="flex min-w-0 flex-1 flex-col gap-1 text-xs text-ink-900">
-            <span data-testid="wisata-detail-alamat" class="whitespace-pre-line">{{ item.alamat }}</span>
-            <span data-testid="wisata-detail-wilayah" class="text-ink-500">Kel. {{ item.kelurahan }}, Kec. {{ item.kecamatan }}, {{ item.provinsi }}</span>
-          </dd>
-        </div>
-
-        <div class="flex flex-col gap-1 sm:flex-row sm:gap-2.5">
-          <dt class="shrink-0 text-xs leading-[1.2] tracking-[-0.36px] text-black sm:w-[185px]">Link Google Maps</dt>
-          <dd class="min-w-0 flex-1 text-xs">
-            <a data-testid="wisata-detail-maps" :href="item.mapsLink" target="_blank" rel="noopener" class="break-all text-brand-500 underline">{{ item.mapsLink }}</a>
-          </dd>
-        </div>
-
-        <div class="flex flex-col gap-1 sm:flex-row sm:gap-2.5">
-          <dt class="shrink-0 text-xs leading-[1.2] tracking-[-0.36px] text-black sm:w-[185px]">Fasilitas</dt>
-          <dd class="min-w-0 flex-1 text-xs text-ink-900">
-            <ul data-testid="wisata-detail-fasilitas" v-if="facilities.length" class="list-disc space-y-0.5 pl-4">
-              <li v-for="facility in facilities" :key="facility.id">{{ facility.facility }}</li>
-            </ul>
-            <span v-else class="text-ink-500">-</span>
-          </dd>
-        </div>
-
-        <div class="flex flex-col gap-1 sm:flex-row sm:gap-2.5">
-          <dt class="shrink-0 text-xs leading-[1.2] tracking-[-0.36px] text-black sm:w-[185px]">Deskripsi</dt>
-          <dd data-testid="wisata-detail-deskripsi" class="min-w-0 flex-1 text-xs whitespace-pre-line text-ink-900">{{ item.deskripsi || '-' }}</dd>
-        </div>
-
-        <div class="flex flex-col gap-1 sm:flex-row sm:gap-2.5">
-          <dt class="shrink-0 text-xs leading-[1.2] tracking-[-0.36px] text-black sm:w-[185px]">Harga Tiket</dt>
-          <dd data-testid="wisata-detail-harga" class="min-w-0 flex-1 text-xs text-ink-900">{{ formatRupiah(item.hargaTiket) }}</dd>
-        </div>
-
-        <div class="flex flex-col gap-1 sm:flex-row sm:gap-2.5">
-          <dt class="shrink-0 text-xs leading-[1.2] tracking-[-0.36px] text-black sm:w-[185px]">Service Objek Wisata</dt>
-          <dd class="min-w-0 flex-1">
-            <table data-testid="wisata-detail-services" v-if="services.length" class="w-full max-w-[420px] border-collapse text-left text-xs">
-              <thead>
-                <tr class="border-b-[0.5px] border-[#c6c6c8] font-medium text-black">
-                  <th scope="col" class="py-2 pr-3 font-medium">Layanan</th>
-                  <th scope="col" class="py-2 text-right font-medium">Harga</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr :data-testid="`wisata-detail-service-${service.id}`" v-for="service in services" :key="service.id" class="border-b-[0.5px] border-[#c6c6c8]">
-                  <td class="py-2 pr-3 text-ink-900">{{ service.serviceName }}</td>
-                  <td class="py-2 text-right text-ink-900">{{ formatRupiah(service.price) }}</td>
-                </tr>
-              </tbody>
-            </table>
-            <span v-else class="text-xs text-ink-500">-</span>
-          </dd>
-        </div>
-
-        <div class="flex flex-col gap-1 border-t-[0.5px] border-[#c6c6c8] pt-4 sm:flex-row sm:gap-2.5">
-          <dt class="shrink-0 text-xs leading-[1.2] tracking-[-0.36px] text-black sm:w-[185px]">Riwayat</dt>
-          <dd class="flex min-w-0 flex-1 flex-col gap-1 text-xs text-ink-500">
-            <span data-testid="wisata-detail-created">Dibuat: {{ formatDateTime(item.createdAt) }}</span>
-            <span data-testid="wisata-detail-updated">Diperbarui: {{ formatDateTime(item.updatedAt) }}</span>
-          </dd>
-        </div>
-      </dl>
+      <WisataDetailSummary v-else-if="item" :item="item" />
     </section>
   </div>
 </template>

@@ -56,7 +56,7 @@ describe('LoginView', () => {
     await fillAndSubmit(wrapper, '  admin ', 'secret')
 
     expect(api.login).toHaveBeenCalledWith({ username: 'admin', password: 'secret' })
-    expect(routerMocks.replace).toHaveBeenCalledWith('/dashboard')
+    expect(routerMocks.replace).toHaveBeenCalledWith('/portal-admin/dashboard')
     expect(wrapper.find('[role="alert"]').exists()).toBe(false)
   })
 
@@ -69,7 +69,7 @@ describe('LoginView', () => {
 
     routerMocks.query = { redirect: '//evil.example' }
     await fillAndSubmit(mount(LoginView), 'admin', 'pw')
-    expect(routerMocks.replace).toHaveBeenLastCalledWith('/dashboard')
+    expect(routerMocks.replace).toHaveBeenLastCalledWith('/portal-admin/dashboard')
   })
 
   it('shows a translated message for a known API error code', async () => {

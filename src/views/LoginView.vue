@@ -25,7 +25,7 @@ function redirectTarget(): string {
   // Only allow same-app relative paths to avoid open redirects.
   return typeof redirect === 'string' && redirect.startsWith('/') && !redirect.startsWith('//')
     ? redirect
-    : '/dashboard'
+    : '/portal-admin/dashboard'
 }
 
 async function onSubmit() {

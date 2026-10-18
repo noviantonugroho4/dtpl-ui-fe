@@ -4,7 +4,7 @@
     <h1 class="mt-4 text-2xl font-semibold">Halaman tidak ditemukan</h1>
     <p class="mt-2 max-w-md text-sm text-ink-500">Halaman yang Anda cari tidak ada atau telah dipindahkan.</p>
     <RouterLink data-testid="not-found-home"
-      :to="{ name: 'dashboard' }"
+      :to="{ name: 'home' }"
       class="mt-6 inline-flex rounded-lg bg-brand-500 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-600"
     >
       Kembali ke beranda
