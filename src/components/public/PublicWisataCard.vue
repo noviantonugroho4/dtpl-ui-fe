@@ -19,10 +19,7 @@ const props = withDefaults(defineProps<{ item: LandingWisata; variant?: 'landing
 const broken = ref(false)
 const showImage = computed(() => !!props.item.imageUrl && !broken.value)
 
-/** Data contoh belum punya halaman detail; arahkan ke daftar. */
-const target = computed(() =>
-  props.item.isMock ? { name: 'public-attractions' } : { name: 'public-attraction-detail', params: { id: props.item.id } },
-)
+const target = computed(() => ({ name: 'public-attraction-detail', params: { id: props.item.id } }))
 </script>
 
 <template>
@@ -31,7 +28,6 @@ const target = computed(() =>
     class="group flex flex-col overflow-hidden bg-white text-left transition focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:outline-none"
     :class="variant === 'landing' ? 'w-[300px] shrink-0 rounded-[25px] shadow-sm hover:shadow-md' : 'w-full rounded-lg border border-ink-200 hover:shadow-md'"
     :data-testid="testid"
-    :data-mock="item.isMock ? 'true' : undefined"
   >
     <div
       class="relative w-full overflow-hidden bg-[#e3e3e3]"

@@ -1,0 +1,69 @@
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { flushPromises, mount } from '@vue/test-utils'
+import { createPinia, setActivePinia } from 'pinia'
+import * as authApi from '@/api/auth'
+import { useAuthDialogStore } from '@/stores/authDialog'
+import PublicHeader from './PublicHeader.vue'
+import { makeUser } from '@/test/helpers'
+
+const routerMocks = vi.hoisted(() => ({ replace: vi.fn().mockResolvedValue(undefined), meta: {} as Record<string, unknown> }))
+
+vi.mock('vue-router', async () => {
+  const { defineComponent, h } = await import('vue')
+  return {
+    useRouter: () => ({ replace: routerMocks.replace, currentRoute: { value: { meta: routerMocks.meta } } }),
+    RouterLink: defineComponent({
+      props: { to: null },
+      setup: (props, { slots, attrs }) => () => h('a', { ...attrs, 'data-to': JSON.stringify(props.to) }, slots.default?.()),
+    }),
+  }
+})
+
+vi.mock('@/api/auth', () => ({ USE_MOCK_API: false, login: vi.fn(), logout: vi.fn(), me: vi.fn(), health: vi.fn() }))
+const api = vi.mocked(authApi)
+
+function seed(role: 'admin' | 'user' = 'user') {
+  localStorage.setItem('dtpl.auth.token', 'jwt-1')
+  localStorage.setItem('dtpl.auth.user', JSON.stringify(makeUser({ username: 'lidya', role })))
+}
+
+describe('PublicHeader', () => {
+  beforeEach(() => {
+    setActivePinia(createPinia())
+    api.logout.mockReset().mockResolvedValue({ data: { logout: true } })
+  })
+
+  it('shows Masuk when signed out and opens the login dialog', async () => {
+    setActivePinia(createPinia())
+    const wrapper = mount(PublicHeader)
+    expect(wrapper.find('[data-testid="public-header-user"]').exists()).toBe(false)
+    await wrapper.find('[data-testid="public-header-login"]').trigger('click')
+    expect(useAuthDialogStore().mode).toBe('login')
+  })
+
+  it('replaces Masuk with the username and offers Keluar in a menu', async () => {
+    seed('user')
+    setActivePinia(createPinia())
+    const wrapper = mount(PublicHeader)
+
+    expect(wrapper.find('[data-testid="public-header-login"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="public-header-user"]').text()).toBe('lidya')
+    expect(wrapper.find('[data-testid="public-header-menu"]').exists()).toBe(false)
+
+    await wrapper.find('[data-testid="public-header-user"]').trigger('click')
+    expect(wrapper.find('[data-testid="public-header-portal"]').exists()).toBe(false)
+
+    await wrapper.find('[data-testid="public-header-logout"]').trigger('click')
+    await flushPromises()
+    expect(api.logout).toHaveBeenCalledWith('jwt-1')
+    expect(wrapper.find('[data-testid="public-header-login"]').exists()).toBe(true)
+  })
+
+  it('adds a Portal Admin entry for admins', async () => {
+    seed('admin')
+    setActivePinia(createPinia())
+    const wrapper = mount(PublicHeader)
+    await wrapper.find('[data-testid="public-header-user"]').trigger('click')
+    expect(wrapper.find('[data-testid="public-header-portal"]').attributes('data-to')).toContain('dashboard')
+  })
+})

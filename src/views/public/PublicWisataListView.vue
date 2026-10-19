@@ -5,7 +5,9 @@ import { ApiError } from '@/api/client'
 import { errorMessageFor } from '@/api/errorMessages'
 import { toLandingWisata, type LandingWisata } from '@/api/landing'
 import { listWisata, WISATA_TYPE_LABELS } from '@/api/wisata'
-import type { PaginationMeta, Wisata, WisataType } from '@/api/types'
+import { listDistricts, listVillages } from '@/api/location'
+import { REGION } from '@/config/region'
+import type { LocationShortItem, PaginationMeta, Wisata, WisataType } from '@/api/types'
 import AppPagination from '@/components/AppPagination.vue'
 import MaskIcon from '@/components/MaskIcon.vue'
 import PublicWisataCard from '@/components/public/PublicWisataCard.vue'
@@ -15,7 +17,6 @@ import iconSearch from '@/assets/icons/search.svg'
 import iconChevronDown from '@/assets/icons/chevron-down.svg'
 
 const PAGE_SIZE = 10
-const OPTIONS_SAMPLE_LIMIT = 50
 const ALL_TYPES = Object.keys(WISATA_TYPE_LABELS) as WisataType[]
 
 /** Rentang budget (harga tiket); disaring di sisi klien karena API belum punya filter harga. */
@@ -43,8 +44,11 @@ const popularity = ref<'desc' | 'asc'>('desc')
 const types = ref<WisataType[]>(initialTypes())
 const budget = ref<Budget>('')
 
-const kecamatanOptions = ref<string[]>([])
-const kelurahanOptions = ref<string[]>([])
+/** Kecamatan di wilayah cakupan (API wilayah), bukan dari data wisata. */
+const districts = ref<LocationShortItem[]>([])
+/** Kelurahan di kecamatan yang dipilih. */
+const villages = ref<LocationShortItem[]>([])
+const districtsError = ref<string | null>(null)
 let controller: AbortController | null = null
 
 function initialTypes(): WisataType[] {
@@ -56,20 +60,30 @@ function initialTypes(): WisataType[] {
 /** API hanya menerima satu `jenis`; kalau tepat satu dipilih, saring di server. */
 const serverJenis = computed(() => (types.value.length === 1 ? types.value[0] : undefined))
 
-function mergeOptions(items: Wisata[]) {
-  const kec = new Set(kecamatanOptions.value)
-  const kel = new Set(kelurahanOptions.value)
-  for (const item of items) {
-    if (item.kecamatan) kec.add(item.kecamatan)
-    if (item.kelurahan) kel.add(item.kelurahan)
+async function loadDistricts() {
+  districtsError.value = null
+  try {
+    districts.value = (await listDistricts(REGION.regencyCode)).data
+  } catch (err) {
+    districtsError.value = err instanceof ApiError ? errorMessageFor(err.code, err.message) : errorMessageFor('UNKNOWN_ERROR')
   }
-  kecamatanOptions.value = [...kec].sort((a, b) => a.localeCompare(b, 'id'))
-  kelurahanOptions.value = [...kel].sort((a, b) => a.localeCompare(b, 'id'))
+}
+
+async function loadVillages(districtName: string) {
+  villages.value = []
+  const district = districts.value.find((d) => d.name === districtName)
+  if (!district) return
+  try {
+    villages.value = (await listVillages(district.id)).data
+  } catch {
+    // Dropdown kelurahan tetap kosong; filter kecamatan masih berjalan.
+  }
 }
 
 async function load() {
   controller?.abort()
-  controller = new AbortController()
+  const current = new AbortController()
+  controller = current
   loading.value = true
   errorMessage.value = null
   try {
@@ -81,24 +95,16 @@ async function load() {
         kecamatan: kecamatan.value || undefined,
         kelurahan: kelurahan.value || undefined,
       },
-      controller.signal,
+      current.signal,
     )
     rows.value = response.data
     meta.value = response.meta
-    mergeOptions(response.data)
   } catch (err) {
     if (err instanceof DOMException && err.name === 'AbortError') return
     errorMessage.value = err instanceof ApiError ? errorMessageFor(err.code, err.message) : errorMessageFor('UNKNOWN_ERROR')
   } finally {
-    loading.value = false
-  }
-}
-
-async function loadOptions() {
-  try {
-    mergeOptions((await listWisata({ page: 1, limit: OPTIONS_SAMPLE_LIMIT })).data)
-  } catch {
-    // Dropdown tetap terisi dari halaman yang dikunjungi.
+    // Permintaan yang sudah dibatalkan tidak boleh mematikan status memuat milik permintaan terbaru.
+    if (controller === current) loading.value = false
   }
 }
 
@@ -140,10 +146,14 @@ function onPageChange(next: number) {
   void load()
 }
 
+watch(kecamatan, (next) => {
+  kelurahan.value = ''
+  void loadVillages(next)
+})
 watch([kecamatan, kelurahan, serverJenis], refetchFromFirstPage)
 
 void load()
-void loadOptions()
+void loadDistricts()
 onBeforeUnmount(() => controller?.abort())
 </script>
 
@@ -187,18 +197,21 @@ onBeforeUnmount(() => controller?.abort())
           <div class="relative">
             <select id="pf-kecamatan" v-model="kecamatan" class="cms-input w-full appearance-none pr-9 font-light" data-testid="public-list-kecamatan">
               <option value="">-- Pilih Kecamatan --</option>
-              <option v-for="option in kecamatanOptions" :key="option" :value="option">{{ option }}</option>
+              <option v-for="district in districts" :key="district.id" :value="district.name">{{ district.name }}</option>
             </select>
             <span class="pointer-events-none absolute inset-y-0 right-3 flex items-center text-ink-900"><MaskIcon :src="iconChevronDown" :size="16" /></span>
           </div>
+          <p v-if="districtsError" class="text-[10px] text-[#ff383c]" role="alert" data-testid="public-list-kecamatan-error">
+            Daftar kecamatan gagal dimuat. <button type="button" class="underline" @click="loadDistricts">Coba lagi</button>
+          </p>
         </div>
 
         <div class="flex flex-col gap-1">
           <label for="pf-kelurahan" class="text-xs leading-[1.4] text-ink-900">Kelurahan</label>
           <div class="relative">
-            <select id="pf-kelurahan" v-model="kelurahan" class="cms-input w-full appearance-none pr-9 font-light" data-testid="public-list-kelurahan">
+            <select id="pf-kelurahan" v-model="kelurahan" class="cms-input w-full appearance-none pr-9 font-light" :disabled="!kecamatan || villages.length === 0" data-testid="public-list-kelurahan">
               <option value="">-- Pilih Kelurahan --</option>
-              <option v-for="option in kelurahanOptions" :key="option" :value="option">{{ option }}</option>
+              <option v-for="village in villages" :key="village.id" :value="village.name">{{ village.name }}</option>
             </select>
             <span class="pointer-events-none absolute inset-y-0 right-3 flex items-center text-ink-900"><MaskIcon :src="iconChevronDown" :size="16" /></span>
           </div>

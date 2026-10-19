@@ -3,7 +3,7 @@ import { ref } from 'vue'
 import { RouterLink } from 'vue-router'
 import { ApiError } from '@/api/client'
 import { errorMessageFor } from '@/api/errorMessages'
-import { getFeaturedWisata, getNewestWisata, type LandingWisata } from '@/api/landing'
+import { getNewestWisata, type LandingWisata } from '@/api/landing'
 import type { WisataType } from '@/api/types'
 import MaskIcon from '@/components/MaskIcon.vue'
 import WisataCarousel from '@/components/public/WisataCarousel.vue'
@@ -21,13 +21,15 @@ const CATEGORIES: { jenis: WisataType; lines: [string, string]; icon: string }[]
   { jenis: 'wisata_budaya_dan_sejarah', lines: ['Wisata Budaya', 'dan Sejarah'], icon: catBudaya },
 ]
 
-const featured = ref<LandingWisata[]>([])
+/**
+ * SEMENTARA: kedua carousel memakai data yang sama (createdAt terbaru) sampai
+ * API menyediakan penanda destinasi unggulan.
+ */
 const newest = ref<LandingWisata[]>([])
 const loadingNewest = ref(true)
 const newestError = ref<string | null>(null)
 
 async function load() {
-  featured.value = await getFeaturedWisata()
   loadingNewest.value = true
   newestError.value = null
   try {
@@ -85,11 +87,14 @@ void load()
       </nav>
     </section>
 
-    <!-- Destinasi Unggulan: data contoh (MOCK) sampai backend punya penanda unggulan -->
+    <!-- Destinasi Unggulan: sementara memakai urutan createdAt terbaru (lihat src/api/landing.ts) -->
     <WisataCarousel
       title="Destinasi Unggulan"
       subtitle="Tempat pilihan terbaik untuk perjalananmu selanjutnya"
-      :items="featured"
+      :items="newest"
+      :loading="loadingNewest"
+      :error="newestError"
+      empty-text="Belum ada destinasi unggulan."
       testid="landing-featured"
     />
 

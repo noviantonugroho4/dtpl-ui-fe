@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
 import * as wisataApi from '@/api/wisata'
+import * as locationApi from '@/api/location'
 import type { Wisata } from '@/api/types'
 import PublicWisataListView from './PublicWisataListView.vue'
 
@@ -17,12 +18,21 @@ vi.mock('vue-router', async () => {
   }
 })
 
+vi.mock('@/api/location', () => ({
+  listDistricts: vi.fn(),
+  listVillages: vi.fn(),
+  listProvinces: vi.fn(),
+  listRegencies: vi.fn(),
+}))
+
 vi.mock('@/api/wisata', async () => {
   const actual = await vi.importActual<typeof import('@/api/wisata')>('@/api/wisata')
   return { ...actual, listWisata: vi.fn() }
 })
 
 const api = vi.mocked(wisataApi)
+const location = vi.mocked(locationApi)
+const meta = { updated_at: '2026-09-04', level: 3 }
 
 function makeWisata(overrides: Partial<Wisata> = {}): Wisata {
   return {
@@ -37,6 +47,8 @@ const resp = (data: Wisata[]) => ({ data, meta: { page: 1, limit: 10, total: dat
 describe('PublicWisataListView', () => {
   beforeEach(() => {
     routeMocks.query = {}
+    location.listDistricts.mockReset().mockResolvedValue({ data: [{ id: '18.13.01', name: 'Pesisir Tengah' }, { id: '18.13.02', name: 'Pesisir Selatan' }], meta })
+    location.listVillages.mockReset().mockResolvedValue({ data: [{ id: '18.13.01.1001', name: 'Pasar Krui' }], meta })
     api.listWisata.mockReset().mockResolvedValue(
       resp([makeWisata(), makeWisata({ id: 'id-2', nama: 'Pantai Pulau Tidung', hargaTiket: 0, kelurahan: 'Pulau Tidung' }), makeWisata({ id: 'id-3', nama: 'Gua Matu', jenis: 'wisata_budaya_dan_sejarah', hargaTiket: 15000 })]),
     )
@@ -78,5 +90,51 @@ describe('PublicWisataListView', () => {
     }
     await flushPromises()
     expect(api.listWisata).toHaveBeenLastCalledWith(expect.objectContaining({ jenis: 'wisata_bahari' }), expect.any(AbortSignal))
+  })
+
+  it('fills Kecamatan from the regency districts and Kelurahan from the chosen district, then filters by name', async () => {
+    const wrapper = mount(PublicWisataListView)
+    await flushPromises()
+
+    expect(location.listDistricts).toHaveBeenCalledWith('18.13')
+    expect(wrapper.findAll('[data-testid="public-list-kecamatan"] option').map((o) => o.text())).toEqual(['-- Pilih Kecamatan --', 'Pesisir Tengah', 'Pesisir Selatan'])
+    expect((wrapper.find('[data-testid="public-list-kelurahan"]').element as HTMLSelectElement).disabled).toBe(true)
+
+    api.listWisata.mockClear()
+    await wrapper.find('[data-testid="public-list-kecamatan"]').setValue('Pesisir Tengah')
+    await flushPromises()
+    expect(location.listVillages).toHaveBeenCalledWith('18.13.01')
+    expect(api.listWisata).toHaveBeenLastCalledWith(expect.objectContaining({ kecamatan: 'Pesisir Tengah', page: 1 }), expect.any(AbortSignal))
+    expect(wrapper.findAll('[data-testid="public-list-kelurahan"] option').map((o) => o.text())).toEqual(['-- Pilih Kelurahan --', 'Pasar Krui'])
+
+    await wrapper.find('[data-testid="public-list-kelurahan"]').setValue('Pasar Krui')
+    await flushPromises()
+    expect(api.listWisata).toHaveBeenLastCalledWith(expect.objectContaining({ kecamatan: 'Pesisir Tengah', kelurahan: 'Pasar Krui' }), expect.any(AbortSignal))
+  })
+})
+
+describe('PublicWisataListView loading race', () => {
+  it('keeps showing the loading state when an earlier request is aborted by a newer filter', async () => {
+    routeMocks.query = {}
+    location.listDistricts.mockResolvedValue({ data: [{ id: '18.13.01', name: 'Pesisir Tengah' }], meta })
+    location.listVillages.mockResolvedValue({ data: [], meta })
+    let resolveSecond!: (value: ReturnType<typeof resp>) => void
+    api.listWisata.mockReset()
+    api.listWisata
+      .mockImplementationOnce((_params, signal) => new Promise((_resolve, reject) => signal?.addEventListener('abort', () => reject(new DOMException('aborted', 'AbortError')))))
+      .mockImplementationOnce(() => new Promise((resolve) => (resolveSecond = resolve)))
+    const wrapper = mount(PublicWisataListView)
+    await flushPromises()
+    expect(wrapper.find('[data-testid="public-list-loading"]').exists()).toBe(true)
+
+    await wrapper.find('[data-testid="public-list-kecamatan"]').setValue('Pesisir Tengah')
+    await flushPromises()
+    expect(wrapper.find('[data-testid="public-list-loading"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="public-list-empty"]').exists()).toBe(false)
+
+    resolveSecond(resp([makeWisata({ id: 'id-9', nama: 'Repong Damar', kecamatan: 'Pesisir Tengah' })]))
+    await flushPromises()
+    expect(wrapper.find('[data-testid="public-list-loading"]').exists()).toBe(false)
+    expect(wrapper.text()).toContain('Repong Damar')
   })
 })

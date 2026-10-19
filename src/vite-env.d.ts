@@ -7,4 +7,6 @@ interface ImportMetaEnv {
   readonly VITE_MOCK_USERNAME?: string
   readonly VITE_MOCK_PASSWORD?: string
   readonly VITE_MOCK_ROLE?: string
+  /** Nomor WhatsApp Admin Widewi tujuan pemesanan tiket, digit internasional (mis. 6281234567890). */
+  readonly VITE_WHATSAPP_ADMIN?: string
 }

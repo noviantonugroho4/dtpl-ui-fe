@@ -1,5 +1,5 @@
-import { request } from './client'
-import type { CreateWisataRequest, ImageUploadResponse, WisataListResponse, WisataResponse, WisataType } from './types'
+import { API_BASE_URL, request } from './client'
+import type { CreateWisataRequest, ImageUploadResponse, WisataImage, WisataListResponse, WisataResponse, WisataType } from './types'
 
 export interface ListWisataParams {
   page?: number
@@ -52,4 +52,15 @@ export function uploadWisataImage(file: File, token: string): Promise<ImageUploa
 
 export function createWisata(payload: CreateWisataRequest, token: string): Promise<WisataResponse> {
   return request<WisataResponse>('/api/v1/wisata', { method: 'POST', body: payload, token })
+}
+
+/**
+ * URL gambar destinasi lewat endpoint publik GET /api/v1/wisata/images/{key},
+ * dibangun dari webdavKey agar satu origin dengan panggilan API lain
+ * (lewat proxy Vite / rewrite Vercel) dan tidak bergantung pada host di webdavUrl.
+ */
+export function wisataImageUrl(image: Pick<WisataImage, 'webdavKey' | 'webdavUrl'>): string {
+  const key = image.webdavKey?.replace(/^\/+/, '')
+  if (!key) return image.webdavUrl
+  return `${API_BASE_URL}/api/v1/wisata/images/${key.split('/').map(encodeURIComponent).join('/')}`
 }

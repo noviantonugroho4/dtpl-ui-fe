@@ -76,7 +76,7 @@ describe('DestinasiWisataDetailView', () => {
     expect(text).toContain('01-10-2026')
 
     const srcs = wrapper.findAll('img').map((img) => img.attributes('src'))
-    expect(srcs).toEqual(['https://cdn/1.jpg', 'https://cdn/2.jpg'])
+    expect(srcs).toEqual(['/api/v1/wisata/images/k1', '/api/v1/wisata/images/k2'])
     expect(wrapper.find('a[href="https://wa.me/628123456789"]').exists()).toBe(true)
     expect(wrapper.find('[data-testid="wisata-detail-edit"]').attributes('data-to')).toContain('"id":"id-1"')
     expect(wrapper.find('[data-testid="wisata-detail-harga"]').text()).toBe('Rp 25.000')

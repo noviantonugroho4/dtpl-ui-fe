@@ -21,7 +21,13 @@ Open http://localhost:5173.
 - `/` is the public site (landing, `/destinasi-wisata`, `/destinasi-wisata/:id`); no login needed.
 - `/portal-admin` is the CMS; unauthenticated visitors are redirected to `/portal-admin/login`.
   The old CMS URLs (`/login`, `/dashboard`, …) redirect to the new prefix.
-- "Destinasi Unggulan" on the landing page is mock data (`src/api/landing.ts`) until the backend exposes a featured flag; "Destinasi Baru" comes from the API.
+- Both landing carousels ("Destinasi Unggulan" and "Destinasi Baru") show the newest entries from the API, sorted by `createdAt`, until the backend exposes a featured flag (`src/api/landing.ts`).
+- Kecamatan/Kelurahan filters come from the location API for the covered regency (`src/config/region.ts`, currently 18.13 Pesisir Barat, Lampung).
+- "Masuk" on the public header opens a login/register modal. Login uses the same `/api/auth/login` as the CMS;
+  registration is a stub (`src/api/register.ts`) that validates and pretends to succeed until the backend has an endpoint.
+- `/kontak` is the public contact page; its details live in `src/config/contact.ts` (placeholder values, replace with the real ones).
+- "Pesan Tiket" on a public destination opens WhatsApp directly with the product's message template
+  (`src/utils/whatsapp.ts`); date and ticket count stay as placeholders for the customer to fill in. Set `VITE_WHATSAPP_ADMIN` to the Widewi admin number; when empty the destination's own contact is used.
 
 ## Backend
 
@@ -122,8 +128,8 @@ Every page, section and interactive element carries a stable `data-testid`, so U
 (Playwright, Cypress, Selenium, Katalon) never has to rely on text, CSS classes or DOM position.
 
 Convention: kebab-case, `<page>-<element>`; repeated items append their key, e.g. `wisata-row-<id>-view`.
-`<id>` is the backend UUID (or `mock-…` for sample data), `<n>` a zero-based index, `<label>` the chart category text.
-The `wisata-type-tag` element also exposes `data-jenis`; public cards built from mock data carry `data-mock="true"`.
+`<id>` is the backend UUID, `<n>` a zero-based index, `<label>` the chart category text.
+The `wisata-type-tag` element also exposes `data-jenis`.
 
 | File | Test ids |
 | --- | --- |
@@ -134,9 +140,10 @@ The `wisata-type-tag` element also exposes `data-jenis`; public cards built from
 | `components/charts/HorizontalBarChart.vue` | `chart-legend`, `chart-bar-<label>`, `chart-table` |
 | `components/charts/LineChart.vue` | `chart-legend`, `chart-point-<label>`, `chart-table` |
 | `components/form/FormRow.vue` | `<testid>-row`, `<testid>-error` |
-| `components/public/PublicHeader.vue` | `public-header`, `public-header-logo`, `public-nav`, `public-nav-home`, `public-nav-attractions`, `public-nav-contact`, `public-social`, `public-social-<instagram|facebook|youtube>`, `public-header-login` |
+| `components/public/AuthDialog.vue` | `auth-dialog`, `auth-dialog-<login|register>`, `auth-dialog-close`, `auth-dialog-title`, `auth-dialog-subtitle`, `auth-login-form`, `auth-login-notice`, `auth-login-error`, `auth-login-username`, `auth-login-password`, `auth-login-password-toggle`, `auth-login-submit`, `auth-switch-register`, `auth-register-form`, `auth-register-mock-notice`, `auth-register-error`, `auth-register-nama-depan`, `auth-register-nama-depan-error`, `auth-register-nama-belakang`, `auth-register-nama-belakang-error`, `auth-register-tempat-lahir`, `auth-register-tempat-lahir-error`, `auth-register-tanggal-lahir`, `auth-register-tanggal-lahir-picker`, `auth-register-tanggal-lahir-native`, `auth-register-tanggal-lahir-error`, `auth-register-alamat`, `auth-register-alamat-error`, `auth-register-telepon`, `auth-register-telepon-error`, `auth-register-username`, `auth-register-username-error`, `auth-register-password`, `auth-register-password-toggle`, `auth-register-password-error`, `auth-register-submit`, `auth-switch-login` |
+| `components/public/PublicHeader.vue` | `public-header`, `public-header-logo`, `public-nav`, `public-nav-home`, `public-nav-attractions`, `public-nav-contact`, `public-social`, `public-social-<instagram|facebook|youtube>`, `public-header-user`, `public-header-menu`, `public-header-portal`, `public-header-logout`, `public-header-login` |
 | `components/public/PublicWisataCard.vue` | `testid`, `<testid>-nama`, `<testid>-kecamatan`, `<testid>-kelurahan`, `<testid>-harga` |
-| `components/public/WisataCarousel.vue` | `testid`, `<testid>-loading`, `<testid>-error`, `<testid>-empty`, `<testid>-title`, `<testid>-more`, `<testid>-prev`, `<testid>-next` |
+| `components/public/WisataCarousel.vue` | `testid`, `<testid>-loading`, `<testid>-error`, `<testid>-empty`, `<testid>-prev`, `<testid>-next`, `<testid>-title`, `<testid>-more` |
 | `layouts/AdminLayout.vue` | `layout`, `layout-backdrop`, `layout-sidebar`, `layout-logo`, `layout-sidebar-close`, `layout-nav`, `nav-<route-name>`, `layout-header`, `layout-menu-toggle`, `layout-title`, `layout-logout`, `layout-main` |
 | `layouts/PublicLayout.vue` | `public-layout`, `public-main`, `public-footer` |
 | `views/ComingSoonView.vue` | `coming-soon-page`, `coming-soon-title` |
@@ -146,6 +153,7 @@ The `wisata-type-tag` element also exposes `data-jenis`; public cards built from
 | `views/DestinasiWisataView.vue` | `wisata-list-page`, `wisata-list-notice`, `wisata-list-notice-close`, `wisata-list-title-card`, `wisata-list-title`, `wisata-list-add`, `wisata-filter-kecamatan`, `wisata-filter-search`, `wisata-table`, `wisata-table-loading`, `wisata-table-error`, `wisata-table-retry`, `wisata-table-empty`, `wisata-row-<id>`, `wisata-row-<id>-nama`, `wisata-row-<id>-jenis`, `wisata-row-<id>-kecamatan`, `wisata-row-<id>-tanggal`, `wisata-row-<id>-view`, `wisata-row-<id>-edit`, `wisata-row-<id>-delete` |
 | `views/LoginView.vue` | `login-page`, `login-brand-panel`, `login-logo`, `login-services`, `login-tagline`, `login-form-panel`, `login-title`, `login-subtitle`, `login-mock-notice`, `login-form`, `login-username`, `login-password`, `login-password-toggle`, `login-error`, `login-submit` |
 | `views/NotFoundView.vue` | `not-found-page`, `not-found-home` |
+| `views/public/ContactView.vue` | `contact-page`, `contact-breadcrumb`, `contact-title`, `contact-info`, `contact-whatsapp`, `contact-email`, `contact-address`, `contact-hours`, `contact-social`, `contact-social-<instagram|facebook|youtube>`, `contact-form`, `contact-sent`, `contact-nama`, `contact-nama-error`, `contact-email-input`, `contact-email-error`, `contact-topik`, `contact-pesan`, `contact-pesan-error`, `contact-submit`, `contact-preview-link` |
 | `views/public/LandingView.vue` | `landing-page`, `landing-hero`, `landing-hero-title`, `landing-hero-subtitle`, `landing-hero-cta`, `landing-categories`, `landing-category-<jenis>` |
-| `views/public/PublicWisataDetailView.vue` | `public-detail-page`, `public-detail-breadcrumb`, `public-detail-title`, `public-detail-loading`, `public-detail-not-found`, `public-detail-error`, `public-detail-retry` |
+| `views/public/PublicWisataDetailView.vue` | `public-detail-page`, `public-detail-breadcrumb`, `public-detail-title`, `public-detail-loading`, `public-detail-not-found`, `public-detail-error`, `public-detail-retry`, `public-detail-nama`, `public-detail`, `public-detail-jenis`, `public-detail-alamat`, `public-detail-map`, `public-detail-map-route`, `public-detail-map-open`, `public-detail-map-link`, `public-detail-deskripsi`, `public-detail-fasilitas`, `public-detail-harga`, `public-detail-order`, `public-detail-gallery`, `public-detail-gallery-<id>`, `public-detail-gallery-empty`, `public-detail-lightbox`, `public-detail-lightbox-close`, `public-detail-lightbox-prev`, `public-detail-lightbox-image`, `public-detail-lightbox-next` |
 | `views/public/PublicWisataListView.vue` | `public-list-page`, `public-list-breadcrumb`, `public-list-title`, `public-list-filters`, `public-list-search`, `public-list-kecamatan`, `public-list-kelurahan`, `public-list-popularity`, `public-list-popularity-desc`, `public-list-popularity-asc`, `public-list-types`, `public-list-type-<jenis>`, `public-list-budget`, `public-list-loading`, `public-list-error`, `public-list-retry`, `public-list-empty`, `public-list-grid` |

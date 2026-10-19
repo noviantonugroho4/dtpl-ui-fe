@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { listWisata, wisataTypeLabel } from './wisata'
+import { listWisata, wisataImageUrl, wisataTypeLabel } from './wisata'
 import { jsonResponse } from '@/test/helpers'
 
 describe('wisata api', () => {
@@ -25,5 +25,10 @@ describe('wisata api', () => {
   it('maps jenis codes to display labels and falls back to the raw code', () => {
     expect(wisataTypeLabel('wisata_budaya_dan_sejarah')).toBe('Wisata Budaya dan Sejarah')
     expect(wisataTypeLabel('unknown_type')).toBe('unknown_type')
+  })
+
+  it('builds public image urls from the storage key, encoding each path segment', () => {
+    expect(wisataImageUrl({ webdavKey: 'wisata/2026/10/a b.jpeg', webdavUrl: 'https://x/ignored' })).toBe('/api/v1/wisata/images/wisata/2026/10/a%20b.jpeg')
+    expect(wisataImageUrl({ webdavKey: '', webdavUrl: 'https://x/fallback.jpg' })).toBe('https://x/fallback.jpg')
   })
 })

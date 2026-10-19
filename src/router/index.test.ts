@@ -34,6 +34,8 @@ describe('router', () => {
     expect(router.currentRoute.value.name).toBe('home')
     await router.push('/destinasi-wisata')
     expect(router.currentRoute.value.name).toBe('public-attractions')
+    await router.push('/kontak')
+    expect(router.currentRoute.value.name).toBe('contact')
     await router.push('/destinasi-wisata/abc')
     expect(router.currentRoute.value.name).toBe('public-attraction-detail')
     expect(router.currentRoute.value.params.id).toBe('abc')

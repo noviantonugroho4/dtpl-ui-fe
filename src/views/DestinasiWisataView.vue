@@ -4,7 +4,9 @@ import { RouterLink } from 'vue-router'
 import { ApiError } from '@/api/client'
 import { errorMessageFor } from '@/api/errorMessages'
 import { listWisata } from '@/api/wisata'
-import type { PaginationMeta, Wisata } from '@/api/types'
+import { listDistricts } from '@/api/location'
+import { REGION } from '@/config/region'
+import type { LocationShortItem, PaginationMeta, Wisata } from '@/api/types'
 import { formatDate } from '@/utils/format'
 import { useFlashStore } from '@/stores/flash'
 import AppPagination from '@/components/AppPagination.vue'
@@ -18,8 +20,6 @@ import iconEdit from '@/assets/icons/edit.svg'
 import iconTrash from '@/assets/icons/trash-2.svg'
 
 const PAGE_SIZE = 10
-/** API maximum; used once to collect the kecamatan options. */
-const OPTIONS_SAMPLE_LIMIT = 50
 
 const rows = ref<Wisata[]>([])
 const meta = ref<PaginationMeta>({ page: 1, limit: PAGE_SIZE, total: 0, totalPages: 0 })
@@ -29,7 +29,8 @@ const errorMessage = ref<string | null>(null)
 const page = ref(1)
 const kecamatan = ref('')
 const search = ref('')
-const kecamatanOptions = ref<string[]>([])
+/** Kecamatan di wilayah cakupan (API wilayah). */
+const districts = ref<LocationShortItem[]>([])
 
 let controller: AbortController | null = null
 
@@ -45,40 +46,33 @@ const filteredRows = computed(() => {
   return rows.value.filter((row) => row.nama.toLowerCase().includes(term))
 })
 
-function mergeKecamatanOptions(items: Wisata[]) {
-  const set = new Set(kecamatanOptions.value)
-  for (const item of items) if (item.kecamatan) set.add(item.kecamatan)
-  kecamatanOptions.value = [...set].sort((a, b) => a.localeCompare(b, 'id'))
-}
-
 async function load() {
   controller?.abort()
-  controller = new AbortController()
+  const current = new AbortController()
+  controller = current
   loading.value = true
   errorMessage.value = null
   try {
     const response = await listWisata(
       { page: page.value, limit: PAGE_SIZE, kecamatan: kecamatan.value || undefined },
-      controller.signal,
+      current.signal,
     )
     rows.value = response.data
     meta.value = response.meta
-    mergeKecamatanOptions(response.data)
   } catch (err) {
     if (err instanceof DOMException && err.name === 'AbortError') return
     errorMessage.value = err instanceof ApiError ? errorMessageFor(err.code, err.message) : errorMessageFor('UNKNOWN_ERROR')
   } finally {
-    loading.value = false
+    // Permintaan yang sudah dibatalkan tidak boleh mematikan status memuat milik permintaan terbaru.
+    if (controller === current) loading.value = false
   }
 }
 
-/** Collect the distinct kecamatan values once so the dropdown is not limited to the current page. */
-async function loadKecamatanOptions() {
+async function loadDistricts() {
   try {
-    const response = await listWisata({ page: 1, limit: OPTIONS_SAMPLE_LIMIT })
-    mergeKecamatanOptions(response.data)
+    districts.value = (await listDistricts(REGION.regencyCode)).data
   } catch {
-    // The dropdown still fills from the pages the user visits.
+    // Dropdown kecamatan kosong; tabel tetap bisa dipakai tanpa filter.
   }
 }
 
@@ -94,7 +88,7 @@ function onPageChange(next: number) {
 
 
 void load()
-void loadKecamatanOptions()
+void loadDistricts()
 
 onBeforeUnmount(() => {
   controller?.abort()
@@ -139,7 +133,7 @@ onBeforeUnmount(() => {
               @change="onKecamatanChange"
             >
               <option value="">-- Pilih Kecamatan --</option>
-              <option v-for="option in kecamatanOptions" :key="option" :value="option">{{ option }}</option>
+              <option v-for="district in districts" :key="district.id" :value="district.name">{{ district.name }}</option>
             </select>
             <span class="pointer-events-none absolute inset-y-0 right-3 flex items-center text-ink-900">
               <MaskIcon :src="iconChevronDown" :size="16" />

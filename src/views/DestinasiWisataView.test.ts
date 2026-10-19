@@ -17,6 +17,13 @@ vi.mock('vue-router', async () => {
   }
 })
 
+vi.mock('@/api/location', () => ({
+  listDistricts: vi.fn().mockResolvedValue({ data: [{ id: '18.13.01', name: 'Pesisir Tengah' }, { id: '18.13.02', name: 'Pesisir Selatan' }], meta: { updated_at: '', level: 3 } }),
+  listVillages: vi.fn(),
+  listProvinces: vi.fn(),
+  listRegencies: vi.fn(),
+}))
+
 vi.mock('@/api/wisata', async () => {
   const actual = await vi.importActual<typeof import('@/api/wisata')>('@/api/wisata')
   return { ...actual, listWisata: vi.fn() }
@@ -79,18 +86,18 @@ describe('DestinasiWisataView', () => {
     expect(wrapper.find('[data-testid="wisata-row-id-2-jenis"] [data-testid="wisata-type-tag"]').attributes('data-jenis')).toBe('wisata_budaya_dan_sejarah')
   })
 
-  it('fills the kecamatan dropdown from the data and refetches with the filter', async () => {
+  it('fills the kecamatan dropdown from the regency districts and refetches with the filter', async () => {
     api.listWisata.mockResolvedValue(listResponse([makeWisata(), makeWisata({ id: 'id-2', kecamatan: 'Senen' })]))
     const wrapper = mount(DestinasiWisataView)
     await flushPromises()
 
     const options = wrapper.findAll('#filter-kecamatan option').map((o) => o.text())
-    expect(options).toEqual(['-- Pilih Kecamatan --', 'Kepulauan Seribu', 'Senen'])
+    expect(options).toEqual(['-- Pilih Kecamatan --', 'Pesisir Tengah', 'Pesisir Selatan'])
 
     api.listWisata.mockClear()
-    await wrapper.find('#filter-kecamatan').setValue('Senen')
+    await wrapper.find('#filter-kecamatan').setValue('Pesisir Selatan')
     await flushPromises()
-    expect(api.listWisata).toHaveBeenCalledWith({ page: 1, limit: 10, kecamatan: 'Senen' }, expect.any(AbortSignal))
+    expect(api.listWisata).toHaveBeenCalledWith({ page: 1, limit: 10, kecamatan: 'Pesisir Selatan' }, expect.any(AbortSignal))
   })
 
   it('filters the loaded rows by name when searching', async () => {
@@ -118,7 +125,6 @@ describe('DestinasiWisataView', () => {
   })
 
   it('shows a translated error with a retry button when the request fails', async () => {
-    api.listWisata.mockRejectedValueOnce(new ApiError(0, 'NETWORK_ERROR', 'offline'))
     api.listWisata.mockRejectedValueOnce(new ApiError(0, 'NETWORK_ERROR', 'offline'))
     api.listWisata.mockResolvedValue(listResponse([makeWisata()]))
     const wrapper = mount(DestinasiWisataView)

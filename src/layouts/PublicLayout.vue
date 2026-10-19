@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { RouterView } from 'vue-router'
 import PublicHeader from '@/components/public/PublicHeader.vue'
+import AuthDialog from '@/components/public/AuthDialog.vue'
 </script>
 
 <template>
@@ -18,5 +19,7 @@ import PublicHeader from '@/components/public/PublicHeader.vue'
     >
       <p>Copyright © 2026 DTPL - Kelompok 2. All rights reserved.</p>
     </footer>
+
+    <AuthDialog />
   </div>
 </template>

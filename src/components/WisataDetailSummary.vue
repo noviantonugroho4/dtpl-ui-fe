@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import type { Wisata } from '@/api/types'
+import { wisataImageUrl } from '@/api/wisata'
 import { formatDateTime, formatRupiah } from '@/utils/format'
 import WisataTypeTag from '@/components/WisataTypeTag.vue'
 
@@ -38,7 +39,7 @@ function whatsappHref(value: string): string {
           >
             <img
               v-if="!brokenImages.has(image.id)"
-              :src="image.webdavUrl"
+              :src="wisataImageUrl(image)"
               :alt="`${item.nama} ${image.sortOrder + 1}`"
               class="size-full object-cover"
               loading="lazy"

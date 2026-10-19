@@ -46,6 +46,12 @@ const router = createRouter({
           meta: { title: 'Destinasi Wisata' },
         },
         {
+          path: 'kontak',
+          name: 'contact',
+          component: () => import('@/views/public/ContactView.vue'),
+          meta: { title: 'Kontak Kami' },
+        },
+        {
           path: 'destinasi-wisata/:id',
           name: 'public-attraction-detail',
           component: () => import('@/views/public/PublicWisataDetailView.vue'),

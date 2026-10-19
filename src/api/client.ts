@@ -1,6 +1,8 @@
 import type { ErrorResponse } from './types'
 
-const BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? '').replace(/\/$/, '')
+/** Origin API tanpa garis miring akhir; kosong = origin situs (lewat proxy/rewrite). */
+export const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? '').replace(/\/$/, '')
+const BASE_URL = API_BASE_URL
 
 export class ApiError extends Error {
   readonly status: number
