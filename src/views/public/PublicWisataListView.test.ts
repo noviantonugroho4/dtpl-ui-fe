@@ -42,7 +42,7 @@ function makeWisata(overrides: Partial<Wisata> = {}): Wisata {
     ...overrides,
   }
 }
-const resp = (data: Wisata[]) => ({ data, meta: { page: 1, limit: 10, total: data.length, totalPages: 1 } })
+const resp = (data: Wisata[], meta = { page: 1, limit: 10, total: data.length, totalPages: 1 }) => ({ data, meta })
 
 describe('PublicWisataListView', () => {
   beforeEach(() => {
@@ -71,25 +71,66 @@ describe('PublicWisataListView', () => {
     expect(api.listWisata).toHaveBeenCalledWith(expect.objectContaining({ jenis: 'wisata_bahari', page: 1, limit: 10 }), expect.any(AbortSignal))
   })
 
-  it('filters by budget and search on the client and narrows jenis to one server-side', async () => {
+  it('fetches every page once for client-side filters (budget, search) and narrows jenis to one server-side', async () => {
     const wrapper = mount(PublicWisataListView)
     await flushPromises()
     expect(wrapper.findAll('[data-testid^="public-list-card-"][data-testid$="-nama"]')).toHaveLength(3)
 
+    api.listWisata.mockClear()
     await wrapper.find('[data-testid="public-list-budget"]').setValue('gratis')
+    await flushPromises()
+    expect(api.listWisata).toHaveBeenCalledTimes(1)
+    expect(api.listWisata).toHaveBeenCalledWith(expect.objectContaining({ page: 1, limit: 50 }), expect.any(AbortSignal))
     expect(wrapper.findAll('[data-testid$="-nama"]').map((c) => c.text())).toEqual(['Pantai Pulau Tidung'])
 
     await wrapper.find('[data-testid="public-list-budget"]').setValue('')
     await wrapper.find('[data-testid="public-list-search"]').setValue('gua')
+    await flushPromises()
+    expect(api.listWisata).toHaveBeenCalledTimes(2) // kembali ke mode server, lalu mode klien memakai cache
     expect(wrapper.findAll('[data-testid$="-nama"]').map((c) => c.text())).toEqual(['Gua Matu'])
 
     await wrapper.find('[data-testid="public-list-search"]').setValue('')
+    await flushPromises()
     api.listWisata.mockClear()
     for (const type of ['wisata_alam', 'wisata_rekreasi', 'wisata_budaya_dan_sejarah']) {
       await wrapper.find(`[data-testid="public-list-type-${type}"]`).setValue(false)
     }
     await flushPromises()
-    expect(api.listWisata).toHaveBeenLastCalledWith(expect.objectContaining({ jenis: 'wisata_bahari' }), expect.any(AbortSignal))
+    expect(api.listWisata).toHaveBeenLastCalledWith(expect.objectContaining({ jenis: 'wisata_bahari', limit: 10 }), expect.any(AbortSignal))
+  })
+
+  it('hides pagination and shows "Data tidak ditemukan!" when a search matches nothing across all pages', async () => {
+    api.listWisata
+      .mockResolvedValueOnce(resp([makeWisata()], { page: 1, limit: 10, total: 35, totalPages: 4 }))
+      .mockResolvedValueOnce(resp([makeWisata()], { page: 1, limit: 50, total: 35, totalPages: 1 }))
+    const wrapper = mount(PublicWisataListView)
+    await flushPromises()
+    expect(wrapper.findAll('[data-testid^="pagination-page-"]')).toHaveLength(4)
+
+    await wrapper.find('[data-testid="public-list-search"]').setValue('tidak ada di mana pun')
+    await flushPromises()
+    expect(wrapper.find('[data-testid="public-list-empty"]').text()).toBe('Data tidak ditemukan!')
+    expect(wrapper.find('[data-testid="pagination"]').exists()).toBe(false)
+  })
+
+  it('paginates client-side results and walks every API page when filtering', async () => {
+    const many = Array.from({ length: 12 }, (_, i) => makeWisata({ id: `m-${i}`, nama: `Pantai ${i}`, hargaTiket: 0 }))
+    api.listWisata
+      .mockResolvedValueOnce(resp(many.slice(0, 10), { page: 1, limit: 10, total: 12, totalPages: 2 }))
+      .mockResolvedValueOnce(resp(many.slice(0, 50), { page: 1, limit: 50, total: 60, totalPages: 2 }))
+      .mockResolvedValueOnce(resp([makeWisata({ id: 'p2', nama: 'Pantai Halaman Dua', hargaTiket: 0 })], { page: 2, limit: 50, total: 60, totalPages: 2 }))
+    const wrapper = mount(PublicWisataListView)
+    await flushPromises()
+
+    await wrapper.find('[data-testid="public-list-search"]').setValue('pantai')
+    await flushPromises()
+    expect(api.listWisata).toHaveBeenCalledTimes(3)
+    expect(wrapper.findAll('[data-testid$="-nama"]')).toHaveLength(10)
+    expect(wrapper.findAll('[data-testid^="pagination-page-"]')).toHaveLength(2)
+
+    await wrapper.find('[data-testid="pagination-page-2"]').trigger('click')
+    expect(wrapper.findAll('[data-testid$="-nama"]').map((c) => c.text())).toEqual(['Pantai 10', 'Pantai 11', 'Pantai Halaman Dua'])
+    expect(api.listWisata).toHaveBeenCalledTimes(3) // halaman klien tidak memanggil API lagi
   })
 
   it('fills Kecamatan from the regency districts and Kelurahan from the chosen district, then filters by name', async () => {

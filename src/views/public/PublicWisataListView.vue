@@ -4,10 +4,10 @@ import { RouterLink, useRoute } from 'vue-router'
 import { ApiError } from '@/api/client'
 import { errorMessageFor } from '@/api/errorMessages'
 import { toLandingWisata, type LandingWisata } from '@/api/landing'
-import { listWisata, WISATA_TYPE_LABELS } from '@/api/wisata'
+import { listWisata, WISATA_TYPE_LABELS, type ListWisataParams } from '@/api/wisata'
 import { listDistricts, listVillages } from '@/api/location'
 import { REGION } from '@/config/region'
-import type { LocationShortItem, PaginationMeta, Wisata, WisataType } from '@/api/types'
+import type { LocationShortItem, Wisata, WisataType } from '@/api/types'
 import AppPagination from '@/components/AppPagination.vue'
 import MaskIcon from '@/components/MaskIcon.vue'
 import PublicWisataCard from '@/components/public/PublicWisataCard.vue'
@@ -17,6 +17,10 @@ import iconSearch from '@/assets/icons/search.svg'
 import iconChevronDown from '@/assets/icons/chevron-down.svg'
 
 const PAGE_SIZE = 10
+/** Batas API per panggilan saat mengambil semua halaman untuk penyaringan di klien. */
+const FETCH_ALL_LIMIT = 50
+/** Pengaman agar pengambilan semua halaman tidak tak berhingga. */
+const FETCH_ALL_MAX_PAGES = 40
 const ALL_TYPES = Object.keys(WISATA_TYPE_LABELS) as WisataType[]
 
 /** Rentang budget (harga tiket); disaring di sisi klien karena API belum punya filter harga. */
@@ -31,8 +35,11 @@ type Budget = (typeof BUDGETS)[number]['value']
 
 const route = useRoute()
 
+/** Mode server: satu halaman dari API. */
 const rows = ref<Wisata[]>([])
-const meta = ref<PaginationMeta>({ page: 1, limit: PAGE_SIZE, total: 0, totalPages: 0 })
+const serverTotalPages = ref(0)
+/** Mode klien: semua baris yang cocok dengan filter server, disaring lagi di klien. */
+const allRows = ref<Wisata[]>([])
 const loading = ref(true)
 const errorMessage = ref<string | null>(null)
 
@@ -50,6 +57,8 @@ const districts = ref<LocationShortItem[]>([])
 const villages = ref<LocationShortItem[]>([])
 const districtsError = ref<string | null>(null)
 let controller: AbortController | null = null
+/** Cache hasil "ambil semua halaman", dikunci oleh filter server. */
+let allRowsCacheKey: string | null = null
 
 function initialTypes(): WisataType[] {
   const fromQuery = route.query.jenis
@@ -59,6 +68,21 @@ function initialTypes(): WisataType[] {
 
 /** API hanya menerima satu `jenis`; kalau tepat satu dipilih, saring di server. */
 const serverJenis = computed(() => (types.value.length === 1 ? types.value[0] : undefined))
+const serverParams = computed<ListWisataParams>(() => ({
+  jenis: serverJenis.value,
+  kecamatan: kecamatan.value || undefined,
+  kelurahan: kelurahan.value || undefined,
+}))
+const serverKey = computed(() => JSON.stringify(serverParams.value))
+
+/**
+ * Filter yang tidak didukung API (cari, budget, beberapa jenis sekaligus) memaksa
+ * mode klien: semua halaman diambil lalu disaring dan dipaginasi di sini, sehingga
+ * nomor halaman selalu mencerminkan jumlah hasil.
+ */
+const clientFilterActive = computed(
+  () => search.value.trim() !== '' || budget.value !== '' || (types.value.length !== ALL_TYPES.length && types.value.length !== 1),
+)
 
 async function loadDistricts() {
   districtsError.value = null
@@ -80,32 +104,61 @@ async function loadVillages(districtName: string) {
   }
 }
 
-async function load() {
+function startRequest(): AbortController {
   controller?.abort()
   const current = new AbortController()
   controller = current
   loading.value = true
   errorMessage.value = null
-  try {
-    const response = await listWisata(
-      {
-        page: page.value,
-        limit: PAGE_SIZE,
-        jenis: serverJenis.value,
-        kecamatan: kecamatan.value || undefined,
-        kelurahan: kelurahan.value || undefined,
-      },
-      current.signal,
-    )
-    rows.value = response.data
-    meta.value = response.meta
-  } catch (err) {
-    if (err instanceof DOMException && err.name === 'AbortError') return
+  return current
+}
+
+function finishRequest(current: AbortController, err?: unknown) {
+  if (err instanceof DOMException && err.name === 'AbortError') return
+  if (err !== undefined) {
     errorMessage.value = err instanceof ApiError ? errorMessageFor(err.code, err.message) : errorMessageFor('UNKNOWN_ERROR')
-  } finally {
-    // Permintaan yang sudah dibatalkan tidak boleh mematikan status memuat milik permintaan terbaru.
-    if (controller === current) loading.value = false
   }
+  // Permintaan yang sudah dibatalkan tidak boleh mematikan status memuat milik permintaan terbaru.
+  if (controller === current) loading.value = false
+}
+
+/** Mode server: satu halaman. */
+async function loadPage() {
+  const current = startRequest()
+  try {
+    const response = await listWisata({ ...serverParams.value, page: page.value, limit: PAGE_SIZE }, current.signal)
+    rows.value = response.data
+    serverTotalPages.value = response.meta.totalPages
+    finishRequest(current)
+  } catch (err) {
+    finishRequest(current, err)
+  }
+}
+
+/** Mode klien: semua halaman untuk filter server saat ini (di-cache). */
+async function loadAll() {
+  if (allRowsCacheKey === serverKey.value) return
+  const current = startRequest()
+  try {
+    const collected: Wisata[] = []
+    let pageNo = 1
+    let totalPages = 1
+    do {
+      const response = await listWisata({ ...serverParams.value, page: pageNo, limit: FETCH_ALL_LIMIT }, current.signal)
+      collected.push(...response.data)
+      totalPages = response.meta.totalPages
+      pageNo += 1
+    } while (pageNo <= totalPages && pageNo <= FETCH_ALL_MAX_PAGES)
+    allRows.value = collected
+    allRowsCacheKey = serverKey.value
+    finishRequest(current)
+  } catch (err) {
+    finishRequest(current, err)
+  }
+}
+
+function load() {
+  return clientFilterActive.value ? loadAll() : loadPage()
 }
 
 function matchesBudget(price: number): boolean {
@@ -123,34 +176,48 @@ function matchesBudget(price: number): boolean {
   }
 }
 
-const cards = computed<LandingWisata[]>(() => {
+const filteredAll = computed(() => {
   const term = search.value.trim().toLowerCase()
-  const filtered = rows.value.filter(
-    (row) =>
-      (!term || row.nama.toLowerCase().includes(term)) &&
-      types.value.includes(row.jenis) &&
-      matchesBudget(row.hargaTiket),
+  return allRows.value.filter(
+    (row) => (!term || row.nama.toLowerCase().includes(term)) && types.value.includes(row.jenis) && matchesBudget(row.hargaTiket),
   )
+})
+
+/** Halaman yang ditampilkan: dari server, atau potongan hasil saringan klien. */
+const pageMeta = computed(() =>
+  clientFilterActive.value
+    ? { page: page.value, totalPages: Math.ceil(filteredAll.value.length / PAGE_SIZE) }
+    : { page: page.value, totalPages: serverTotalPages.value },
+)
+
+const cards = computed<LandingWisata[]>(() => {
+  const source = clientFilterActive.value ? filteredAll.value.slice((page.value - 1) * PAGE_SIZE, page.value * PAGE_SIZE) : rows.value
   // MOCK: backend belum punya data "paling banyak diminati"; urutan API dianggap tinggi→rendah.
-  const ordered = popularity.value === 'asc' ? [...filtered].reverse() : filtered
+  const ordered = popularity.value === 'asc' ? [...source].reverse() : source
   return ordered.map(toLandingWisata)
 })
 
-function refetchFromFirstPage() {
-  page.value = 1
-  void load()
-}
+const hasAnyData = computed(() => (clientFilterActive.value ? allRows.value.length > 0 : rows.value.length > 0))
 
 function onPageChange(next: number) {
   page.value = next
-  void load()
+  if (!clientFilterActive.value) void loadPage()
 }
 
 watch(kecamatan, (next) => {
   kelurahan.value = ''
   void loadVillages(next)
 })
-watch([kecamatan, kelurahan, serverJenis], refetchFromFirstPage)
+// Filter server berubah: mulai dari halaman 1 dan muat ulang sesuai mode.
+watch(serverKey, () => {
+  page.value = 1
+  void load()
+})
+// Filter klien berubah: kembali ke halaman 1; pindah mode memuat sumber data yang sesuai.
+watch([clientFilterActive, search, budget, () => types.value.join(',')], ([active], [wasActive]) => {
+  page.value = 1
+  if (active !== wasActive) void load()
+})
 
 void load()
 void loadDistricts()
@@ -256,13 +323,13 @@ onBeforeUnmount(() => controller?.abort())
           <button type="button" class="font-semibold underline" data-testid="public-list-retry" @click="load">Coba lagi</button>
         </div>
         <p v-else-if="cards.length === 0" class="py-10 text-xs text-ink-500" data-testid="public-list-empty">
-          {{ rows.length === 0 ? 'Belum ada data yang ditambahkan.' : 'Data tidak ditemukan!' }}
+          {{ hasAnyData ? 'Data tidak ditemukan!' : 'Belum ada data yang ditambahkan.' }}
         </p>
         <div v-else class="grid w-full grid-cols-1 gap-6 sm:grid-cols-2" data-testid="public-list-grid">
           <PublicWisataCard v-for="card in cards" :key="card.id" :item="card" variant="grid" :testid="`public-list-card-${card.id}`" />
         </div>
 
-        <AppPagination v-if="meta.totalPages > 0" :page="meta.page" :total-pages="meta.totalPages" @change="onPageChange" />
+        <AppPagination v-if="pageMeta.totalPages > 1" :page="pageMeta.page" :total-pages="pageMeta.totalPages" @change="onPageChange" />
       </div>
     </section>
   </div>
