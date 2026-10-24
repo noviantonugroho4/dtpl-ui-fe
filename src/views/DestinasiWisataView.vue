@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, ref } from 'vue'
+import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { RouterLink } from 'vue-router'
 import { ApiError } from '@/api/client'
 import { errorMessageFor } from '@/api/errorMessages'
@@ -20,9 +20,18 @@ import iconEdit from '@/assets/icons/edit.svg'
 import iconTrash from '@/assets/icons/trash-2.svg'
 
 const PAGE_SIZE = 10
+/** Batas API per panggilan saat mengambil semua halaman untuk pencarian di klien. */
+const FETCH_ALL_LIMIT = 50
+/** Pengaman agar pengambilan semua halaman tidak tak berhingga. */
+const FETCH_ALL_MAX_PAGES = 40
 
+/** Mode server: satu halaman dari API. */
 const rows = ref<Wisata[]>([])
 const meta = ref<PaginationMeta>({ page: 1, limit: PAGE_SIZE, total: 0, totalPages: 0 })
+/** Mode cari: semua baris untuk filter kecamatan saat ini, disaring dan dipaginasi di klien. */
+const allRows = ref<Wisata[]>([])
+/** Cache hasil "ambil semua halaman", dikunci oleh filter kecamatan. */
+let allRowsCacheKey: string | null = null
 const loading = ref(true)
 const errorMessage = ref<string | null>(null)
 
@@ -40,25 +49,56 @@ const notice = ref<string | null>(flash.take())
 let noticeTimer: ReturnType<typeof setTimeout> | null = null
 if (notice.value) noticeTimer = setTimeout(() => (notice.value = null), 6000)
 
-const filteredRows = computed(() => {
-  const term = search.value.trim().toLowerCase()
-  if (!term) return rows.value
-  return rows.value.filter((row) => row.nama.toLowerCase().includes(term))
-})
+/** API belum punya parameter cari; pencarian nama memaksa mode klien agar pagination mengikuti jumlah hasil. */
+const searchTerm = computed(() => search.value.trim().toLowerCase())
+const searchActive = computed(() => searchTerm.value !== '')
+
+const searchMatches = computed(() => allRows.value.filter((row) => row.nama.toLowerCase().includes(searchTerm.value)))
+
+const filteredRows = computed(() =>
+  searchActive.value ? searchMatches.value.slice((page.value - 1) * PAGE_SIZE, page.value * PAGE_SIZE) : rows.value,
+)
+
+const pageMeta = computed(() =>
+  searchActive.value
+    ? { page: page.value, totalPages: Math.ceil(searchMatches.value.length / PAGE_SIZE) }
+    : { page: meta.value.page, totalPages: meta.value.totalPages },
+)
+
+const hasAnyData = computed(() => (searchActive.value ? allRows.value.length > 0 : rows.value.length > 0))
 
 async function load() {
+  const cacheKey = kecamatan.value
+  if (searchActive.value && allRowsCacheKey === cacheKey) return
   controller?.abort()
   const current = new AbortController()
   controller = current
   loading.value = true
   errorMessage.value = null
   try {
-    const response = await listWisata(
-      { page: page.value, limit: PAGE_SIZE, kecamatan: kecamatan.value || undefined },
-      current.signal,
-    )
-    rows.value = response.data
-    meta.value = response.meta
+    if (searchActive.value) {
+      const collected: Wisata[] = []
+      let pageNo = 1
+      let totalPages = 1
+      do {
+        const response = await listWisata(
+          { page: pageNo, limit: FETCH_ALL_LIMIT, kecamatan: kecamatan.value || undefined },
+          current.signal,
+        )
+        collected.push(...response.data)
+        totalPages = response.meta.totalPages
+        pageNo += 1
+      } while (pageNo <= totalPages && pageNo <= FETCH_ALL_MAX_PAGES)
+      allRows.value = collected
+      allRowsCacheKey = cacheKey
+    } else {
+      const response = await listWisata(
+        { page: page.value, limit: PAGE_SIZE, kecamatan: kecamatan.value || undefined },
+        current.signal,
+      )
+      rows.value = response.data
+      meta.value = response.meta
+    }
   } catch (err) {
     if (err instanceof DOMException && err.name === 'AbortError') return
     errorMessage.value = err instanceof ApiError ? errorMessageFor(err.code, err.message) : errorMessageFor('UNKNOWN_ERROR')
@@ -78,13 +118,20 @@ async function loadDistricts() {
 
 function onKecamatanChange() {
   page.value = 1
+  allRowsCacheKey = null
   void load()
 }
 
 function onPageChange(next: number) {
   page.value = next
-  void load()
+  if (!searchActive.value) void load()
 }
+
+// Kata kunci berubah: kembali ke halaman 1; pindah mode memuat sumber data yang sesuai.
+watch([searchActive, searchTerm], ([active], [wasActive]) => {
+  page.value = 1
+  if (active !== wasActive) void load()
+})
 
 
 void load()
@@ -191,7 +238,7 @@ onBeforeUnmount(() => {
             </tr>
             <tr data-testid="wisata-table-empty" v-else-if="filteredRows.length === 0" class="border-b-[0.5px] border-[#c6c6c8]">
               <td colspan="5" class="p-3 text-ink-500">
-                {{ rows.length === 0 ? 'Belum ada data yang ditambahkan.' : 'Data tidak ditemukan!' }}
+                {{ hasAnyData ? 'Data tidak ditemukan!' : 'Belum ada data yang ditambahkan.' }}
               </td>
             </tr>
             <tr :data-testid="`wisata-row-${row.id}`" v-for="row in filteredRows" v-else :key="row.id" class="border-b-[0.5px] border-[#c6c6c8]">
@@ -232,7 +279,7 @@ onBeforeUnmount(() => {
       </div>
 
       <!-- Pagination (Figma 177:1453) -->
-      <AppPagination v-if="meta.totalPages > 0" :page="meta.page" :total-pages="meta.totalPages" @change="onPageChange" />
+      <AppPagination v-if="pageMeta.totalPages > 0" :page="pageMeta.page" :total-pages="pageMeta.totalPages" @change="onPageChange" />
     </section>
   </div>
 </template>

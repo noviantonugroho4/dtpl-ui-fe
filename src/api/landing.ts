@@ -25,17 +25,31 @@ export function toLandingWisata(w: Wisata): LandingWisata {
   }
 }
 
-/** Destinasi dari backend, diurutkan createdAt terbaru. */
-export async function getNewestWisata(limit = 6): Promise<LandingWisata[]> {
-  const { data } = await listWisata({ page: 1, limit: 50 })
-  return [...data]
-    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-    .slice(0, limit)
-    .map(toLandingWisata)
+/** Jumlah kartu per carousel beranda (PRD: 5 unggulan, 5 terbaru). */
+export const LANDING_SECTION_SIZE = 5
+
+export interface LandingSections {
+  newest: LandingWisata[]
+  featured: LandingWisata[]
+}
+
+function byNewest(a: Wisata, b: Wisata): number {
+  return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
 }
 
 /**
- * SEMENTARA: API belum punya penanda "unggulan", jadi carousel Destinasi Unggulan
- * memakai urutan yang sama dengan Destinasi Baru sampai ada penyesuaian di API.
+ * SEMENTARA: API belum mencatat jumlah peminat, jadi "unggulan" memakai judul
+ * terpanjang (sesuai definisi sementara di PRD), seri dipecah dengan createdAt terbaru.
  */
-export const getFeaturedWisata = getNewestWisata
+function byFeatured(a: Wisata, b: Wisata): number {
+  return b.nama.length - a.nama.length || byNewest(a, b)
+}
+
+/** Kedua carousel beranda dari satu panggilan API. */
+export async function getLandingSections(limit = LANDING_SECTION_SIZE): Promise<LandingSections> {
+  const { data } = await listWisata({ page: 1, limit: 50 })
+  return {
+    newest: [...data].sort(byNewest).slice(0, limit).map(toLandingWisata),
+    featured: [...data].sort(byFeatured).slice(0, limit).map(toLandingWisata),
+  }
+}

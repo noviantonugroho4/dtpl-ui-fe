@@ -55,6 +55,7 @@ const images = computed<WisataImage[]>(() =>
   [...(item.value?.images ?? [])].sort((a, b) => a.sortOrder - b.sortOrder).filter((image) => !brokenImages.value.has(image.id)),
 )
 const facilities = computed(() => [...(item.value?.fasilitas ?? [])].sort((a, b) => a.sortOrder - b.sortOrder))
+const services = computed(() => [...(item.value?.services ?? [])].sort((a, b) => a.sortOrder - b.sortOrder))
 const emptySlots = computed(() => Math.max(0, GALLERY_SLOTS - images.value.length))
 
 /** Rute: Google Maps directions ke alamat (API belum memberi koordinat). */
@@ -71,8 +72,10 @@ const routeHref = computed(() => {
 const whatsappHref = computed(() => {
   if (!item.value) return '#'
   const phone = WHATSAPP_ADMIN_NUMBER || item.value.kontakWa || item.value.kontakTelp
-  const services = [...(item.value.services ?? [])].sort((a, b) => a.sortOrder - b.sortOrder).map((s) => s.serviceName)
-  return whatsappLink(phone, buildTicketMessage({ namaWisata: item.value.nama, namaPemesan: auth.user?.username, services }))
+  return whatsappLink(
+    phone,
+    buildTicketMessage({ namaWisata: item.value.nama, namaPemesan: auth.user?.username, services: services.value.map((s) => s.serviceName) }),
+  )
 })
 
 function openLightbox(index: number) {
@@ -205,6 +208,27 @@ watch(id, () => void load(), { immediate: true })
             <div class="flex flex-col gap-1 py-[9px] sm:flex-row">
               <dt class="shrink-0 text-xs leading-[1.2] tracking-[-0.36px] text-black sm:w-[128px]">Harga Tiket</dt>
               <dd class="min-w-0 flex-1 text-xs leading-none text-ink-900" data-testid="public-detail-harga">{{ formatRupiah(item.hargaTiket) }}</dd>
+            </div>
+
+            <div class="flex flex-col gap-1 py-[9px] sm:flex-row">
+              <dt class="shrink-0 text-xs leading-[1.2] tracking-[-0.36px] text-black sm:w-[128px]">Service Objek Wisata</dt>
+              <dd class="min-w-0 flex-1 text-xs text-ink-900">
+                <table v-if="services.length" class="w-full max-w-[420px] border-collapse text-left" data-testid="public-detail-services">
+                  <thead>
+                    <tr class="border-b-[0.5px] border-[#c6c6c8] font-medium text-black">
+                      <th scope="col" class="py-2 pr-3 font-medium">Layanan</th>
+                      <th scope="col" class="py-2 text-right font-medium">Harga</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr v-for="service in services" :key="service.id" class="border-b-[0.5px] border-[#c6c6c8]" :data-testid="`public-detail-service-${service.id}`">
+                      <td class="py-2 pr-3">{{ service.serviceName }}</td>
+                      <td class="py-2 text-right">{{ formatRupiah(service.price) }}</td>
+                    </tr>
+                  </tbody>
+                </table>
+                <span v-else class="text-ink-500">-</span>
+              </dd>
             </div>
           </dl>
 

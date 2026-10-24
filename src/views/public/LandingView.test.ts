@@ -17,7 +17,7 @@ vi.mock('vue-router', async () => {
 
 vi.mock('@/api/landing', async () => {
   const actual = await vi.importActual<typeof import('@/api/landing')>('@/api/landing')
-  return { ...actual, getNewestWisata: vi.fn() }
+  return { ...actual, getLandingSections: vi.fn() }
 })
 
 const api = vi.mocked(landingApi)
@@ -28,30 +28,32 @@ function card(id: string, nama: string): LandingWisata {
 
 describe('LandingView', () => {
   beforeEach(() => {
-    api.getNewestWisata.mockReset()
+    api.getLandingSections.mockReset()
   })
 
-  it('renders hero, categories, and fills both carousels from the newest API items with one call', async () => {
-    api.getNewestWisata.mockResolvedValue([card('n1', 'Pantai Baru')])
+  it('renders hero, categories, and fills each carousel from its own section with one call', async () => {
+    api.getLandingSections.mockResolvedValue({ newest: [card('n1', 'Pantai Baru')], featured: [card('f1', 'Pantai Unggulan')] })
     const wrapper = mount(LandingView)
     await flushPromises()
 
-    expect(api.getNewestWisata).toHaveBeenCalledTimes(1)
+    expect(api.getLandingSections).toHaveBeenCalledTimes(1)
     expect(wrapper.find('[data-testid="landing-hero-title"]').text()).toContain('Wisata Impian')
     expect(wrapper.findAll('[data-testid^="landing-category-"]')).toHaveLength(4)
     expect(wrapper.find('[data-testid="landing-category-wisata_bahari"]').attributes('data-to')).toContain('"jenis":"wisata_bahari"')
 
     const featured = wrapper.find('[data-testid="landing-featured"]')
     expect(featured.text()).toContain('Destinasi Unggulan')
-    expect(featured.find('[data-testid="landing-featured-card-n1"]').attributes('data-to')).toContain('"id":"n1"')
+    expect(featured.find('[data-testid="landing-featured-card-f1"]').attributes('data-to')).toContain('"id":"f1"')
+    expect(featured.text()).not.toContain('Pantai Baru')
 
     const newest = wrapper.find('[data-testid="landing-newest"]')
     expect(newest.text()).toContain('Pantai Baru')
+    expect(newest.text()).not.toContain('Pantai Unggulan')
     expect(newest.find('[data-testid="landing-newest-card-n1"]').attributes('data-to')).toContain('"id":"n1"')
   })
 
   it('shows the error inside both sections when the API fails, leaving hero and categories intact', async () => {
-    api.getNewestWisata.mockRejectedValue(new ApiError(0, 'NETWORK_ERROR', 'offline'))
+    api.getLandingSections.mockRejectedValue(new ApiError(0, 'NETWORK_ERROR', 'offline'))
     const wrapper = mount(LandingView)
     await flushPromises()
     expect(wrapper.find('[data-testid="landing-newest-error"]').text()).toContain('Tidak dapat terhubung ke server')
@@ -60,7 +62,8 @@ describe('LandingView', () => {
   })
 
   it('pages the carousel with the arrow buttons', async () => {
-    api.getNewestWisata.mockResolvedValue([1, 2, 3, 4, 5].map((n) => card(`m${n}`, `Mock ${n}`)))
+    const items = [1, 2, 3, 4, 5].map((n) => card(`m${n}`, `Mock ${n}`))
+    api.getLandingSections.mockResolvedValue({ newest: items, featured: items })
     const wrapper = mount(LandingView)
     await flushPromises()
 

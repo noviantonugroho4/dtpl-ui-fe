@@ -13,7 +13,13 @@ vi.mock('vue-router', async () => {
   return {
     useRouter: () => ({ replace: routerMocks.replace }),
     useRoute: () => ref({ fullPath: '/dashboard', meta: { title: 'Dashboard' } }).value,
-    RouterLink: defineComponent({ props: { to: null }, setup: (_, { slots }) => () => h('a', slots.default?.()) }),
+    RouterLink: defineComponent({
+      props: { to: null, custom: Boolean },
+      setup: (props, { slots }) => () => {
+        const slotProps = { href: '#', navigate: () => {}, isActive: false }
+        return props.custom ? slots.default?.(slotProps) : h('a', slots.default?.(slotProps))
+      },
+    }),
     RouterView: defineComponent({ setup: () => () => h('div', 'page') }),
   }
 })

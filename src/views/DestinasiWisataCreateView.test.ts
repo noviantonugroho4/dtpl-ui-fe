@@ -119,8 +119,48 @@ describe('DestinasiWisataCreateView', () => {
     expect(wrapper.find('[data-testid="wisata-form-maps-error"]').exists()).toBe(true)
     expect(text).toContain('Nomor telepon harus 8–13 digit setelah +62.')
     expect(text).toContain('Masukkan tautan Google Maps yang valid.')
-    expect(text).toContain('Deskripsi maksimal 500 karakter.')
     expect(wisata.createWisata).not.toHaveBeenCalled()
+  })
+
+  it('caps Deskripsi at 500 characters while typing and shows the message right away', async () => {
+    const wrapper = mount(DestinasiWisataCreateView)
+    await flushPromises()
+    await wrapper.find('#f-deskripsi').setValue('x'.repeat(501))
+    await flushPromises()
+    expect((wrapper.find('#f-deskripsi').element as HTMLTextAreaElement).value).toHaveLength(500)
+    expect(wrapper.find('[data-testid="wisata-form-deskripsi-error"]').text()).toBe('Maksimal 500 karakter!')
+
+    await wrapper.find('#f-deskripsi').setValue('x'.repeat(10))
+    expect(wrapper.find('[data-testid="wisata-form-deskripsi-error"]').exists()).toBe(false)
+  })
+
+  it('disables the add-facility button at 15 rows with a limit message', async () => {
+    const wrapper = mount(DestinasiWisataCreateView)
+    await flushPromises()
+    const add = () => wrapper.find('[data-testid="wisata-form-fasilitas-add"]')
+    for (let i = 1; i < 15; i++) await add().trigger('click')
+    expect(wrapper.findAll('input[aria-label^="Fasilitas "]')).toHaveLength(15)
+    expect(add().attributes('disabled')).toBeDefined()
+    expect(wrapper.find('[data-testid="wisata-form-fasilitas-limit"]').text()).toBe('Tidak bisa menambah baris fasilitas, maksimal 15 Poin!')
+  })
+
+  it('keeps Simpan disabled and warns while the phone number contains letters', async () => {
+    const wrapper = mount(DestinasiWisataCreateView)
+    await flushPromises()
+    await fillValidForm(wrapper)
+    await wrapper.find('#f-telp').setValue('08123abcde')
+    await flushPromises()
+    expect(wrapper.find('[data-testid="wisata-form-submit"]').attributes('disabled')).toBeDefined()
+    expect(wrapper.find('[data-testid="wisata-form-kontak-error"]').text()).toBe('No. Telp hanya boleh berisi angka.')
+
+    await wrapper.find('#f-telp').setValue('0812345678')
+    await wrapper.find('#f-wa').setValue('wa-saya')
+    await flushPromises()
+    expect(wrapper.find('[data-testid="wisata-form-submit"]').attributes('disabled')).toBeDefined()
+
+    await wrapper.find('#f-wa').setValue('')
+    await flushPromises()
+    expect(wrapper.find('[data-testid="wisata-form-submit"]').attributes('disabled')).toBeUndefined()
   })
 
   it('rejects images that are too large or the wrong format', async () => {

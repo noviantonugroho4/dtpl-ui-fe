@@ -23,15 +23,16 @@ const FETCH_ALL_LIMIT = 50
 const FETCH_ALL_MAX_PAGES = 40
 const ALL_TYPES = Object.keys(WISATA_TYPE_LABELS) as WisataType[]
 
-/** Rentang budget (harga tiket); disaring di sisi klien karena API belum punya filter harga. */
-const BUDGETS = [
-  { value: '', label: '-- Pilih Budget --' },
-  { value: 'gratis', label: 'Gratis' },
-  { value: 'lt50', label: 'Di bawah Rp 50.000' },
-  { value: '50to100', label: 'Rp 50.000 – Rp 100.000' },
-  { value: 'gt100', label: 'Di atas Rp 100.000' },
+/** Rentang harga tiket sesuai PRD; disaring di sisi klien karena API belum punya filter harga. */
+const PRICE_RANGES = [
+  { value: '', label: '-- Pilih Harga --', min: 0, max: Infinity },
+  { value: 'lt50k', label: '< Rp 50.000', min: 0, max: 49999 },
+  { value: '50k-200k', label: 'Rp 50.000 – Rp 200.000', min: 50000, max: 200000 },
+  { value: '200k-500k', label: 'Rp 200.001 – Rp 500.000', min: 200001, max: 500000 },
+  { value: '500k-1m', label: 'Rp 500.001 – Rp 1.000.000', min: 500001, max: 1000000 },
+  { value: 'gt1m', label: '> Rp 1.000.000', min: 1000001, max: Infinity },
 ] as const
-type Budget = (typeof BUDGETS)[number]['value']
+type PriceRange = (typeof PRICE_RANGES)[number]['value']
 
 const route = useRoute()
 
@@ -45,11 +46,12 @@ const errorMessage = ref<string | null>(null)
 
 const page = ref(1)
 const search = ref('')
-const kecamatan = ref('')
-const kelurahan = ref('')
+/** Teks yang diketik di kolom kecamatan/kelurahan; filter baru aktif bila cocok dengan nama di daftar. */
+const kecamatanInput = ref('')
+const kelurahanInput = ref('')
 const popularity = ref<'desc' | 'asc'>('desc')
 const types = ref<WisataType[]>(initialTypes())
-const budget = ref<Budget>('')
+const harga = ref<PriceRange>('')
 
 /** Kecamatan di wilayah cakupan (API wilayah), bukan dari data wisata. */
 const districts = ref<LocationShortItem[]>([])
@@ -66,8 +68,18 @@ function initialTypes(): WisataType[] {
   return value && ALL_TYPES.includes(value) ? [value] : [...ALL_TYPES]
 }
 
+function matchName(list: LocationShortItem[], input: string): string {
+  const term = input.trim().toLowerCase()
+  return term ? (list.find((item) => item.name.toLowerCase() === term)?.name ?? '') : ''
+}
+const kecamatan = computed(() => matchName(districts.value, kecamatanInput.value))
+const kelurahan = computed(() => matchName(villages.value, kelurahanInput.value))
+
+/** Tidak ada jenis dicentang = semua jenis (bukan hasil kosong). */
+const activeTypes = computed<WisataType[]>(() => (types.value.length === 0 ? ALL_TYPES : types.value))
+
 /** API hanya menerima satu `jenis`; kalau tepat satu dipilih, saring di server. */
-const serverJenis = computed(() => (types.value.length === 1 ? types.value[0] : undefined))
+const serverJenis = computed(() => (activeTypes.value.length === 1 ? activeTypes.value[0] : undefined))
 const serverParams = computed<ListWisataParams>(() => ({
   jenis: serverJenis.value,
   kecamatan: kecamatan.value || undefined,
@@ -76,12 +88,15 @@ const serverParams = computed<ListWisataParams>(() => ({
 const serverKey = computed(() => JSON.stringify(serverParams.value))
 
 /**
- * Filter yang tidak didukung API (cari, budget, beberapa jenis sekaligus) memaksa
+ * Filter yang tidak didukung API (cari, harga, beberapa jenis sekaligus) memaksa
  * mode klien: semua halaman diambil lalu disaring dan dipaginasi di sini, sehingga
  * nomor halaman selalu mencerminkan jumlah hasil.
  */
 const clientFilterActive = computed(
-  () => search.value.trim() !== '' || budget.value !== '' || (types.value.length !== ALL_TYPES.length && types.value.length !== 1),
+  () =>
+    search.value.trim() !== '' ||
+    harga.value !== '' ||
+    (activeTypes.value.length !== ALL_TYPES.length && activeTypes.value.length !== 1),
 )
 
 async function loadDistricts() {
@@ -161,25 +176,15 @@ function load() {
   return clientFilterActive.value ? loadAll() : loadPage()
 }
 
-function matchesBudget(price: number): boolean {
-  switch (budget.value) {
-    case 'gratis':
-      return price === 0
-    case 'lt50':
-      return price > 0 && price < 50000
-    case '50to100':
-      return price >= 50000 && price <= 100000
-    case 'gt100':
-      return price > 100000
-    default:
-      return true
-  }
+function matchesPrice(price: number): boolean {
+  const range = PRICE_RANGES.find((r) => r.value === harga.value) ?? PRICE_RANGES[0]
+  return price >= range.min && price <= range.max
 }
 
 const filteredAll = computed(() => {
   const term = search.value.trim().toLowerCase()
   return allRows.value.filter(
-    (row) => (!term || row.nama.toLowerCase().includes(term)) && types.value.includes(row.jenis) && matchesBudget(row.hargaTiket),
+    (row) => (!term || row.nama.toLowerCase().includes(term)) && activeTypes.value.includes(row.jenis) && matchesPrice(row.hargaTiket),
   )
 })
 
@@ -205,7 +210,7 @@ function onPageChange(next: number) {
 }
 
 watch(kecamatan, (next) => {
-  kelurahan.value = ''
+  kelurahanInput.value = ''
   void loadVillages(next)
 })
 // Filter server berubah: mulai dari halaman 1 dan muat ulang sesuai mode.
@@ -214,7 +219,7 @@ watch(serverKey, () => {
   void load()
 })
 // Filter klien berubah: kembali ke halaman 1; pindah mode memuat sumber data yang sesuai.
-watch([clientFilterActive, search, budget, () => types.value.join(',')], ([active], [wasActive]) => {
+watch([clientFilterActive, search, harga, () => activeTypes.value.join(',')], ([active], [wasActive]) => {
   page.value = 1
   if (active !== wasActive) void load()
 })
@@ -262,10 +267,19 @@ onBeforeUnmount(() => controller?.abort())
         <div class="flex flex-col gap-1">
           <label for="pf-kecamatan" class="text-xs leading-[1.4] text-ink-900">Kecamatan</label>
           <div class="relative">
-            <select id="pf-kecamatan" v-model="kecamatan" class="cms-input w-full appearance-none pr-9 font-light" data-testid="public-list-kecamatan">
-              <option value="">-- Pilih Kecamatan --</option>
-              <option v-for="district in districts" :key="district.id" :value="district.name">{{ district.name }}</option>
-            </select>
+            <input
+              id="pf-kecamatan"
+              v-model="kecamatanInput"
+              type="text"
+              list="pf-kecamatan-options"
+              autocomplete="off"
+              placeholder="-- Pilih Kecamatan --"
+              class="cms-input w-full pr-9 font-light"
+              data-testid="public-list-kecamatan"
+            />
+            <datalist id="pf-kecamatan-options" data-testid="public-list-kecamatan-options">
+              <option v-for="district in districts" :key="district.id" :value="district.name" />
+            </datalist>
             <span class="pointer-events-none absolute inset-y-0 right-3 flex items-center text-ink-900"><MaskIcon :src="iconChevronDown" :size="16" /></span>
           </div>
           <p v-if="districtsError" class="text-[10px] text-[#ff383c]" role="alert" data-testid="public-list-kecamatan-error">
@@ -276,10 +290,20 @@ onBeforeUnmount(() => controller?.abort())
         <div class="flex flex-col gap-1">
           <label for="pf-kelurahan" class="text-xs leading-[1.4] text-ink-900">Kelurahan</label>
           <div class="relative">
-            <select id="pf-kelurahan" v-model="kelurahan" class="cms-input w-full appearance-none pr-9 font-light" :disabled="!kecamatan || villages.length === 0" data-testid="public-list-kelurahan">
-              <option value="">-- Pilih Kelurahan --</option>
-              <option v-for="village in villages" :key="village.id" :value="village.name">{{ village.name }}</option>
-            </select>
+            <input
+              id="pf-kelurahan"
+              v-model="kelurahanInput"
+              type="text"
+              list="pf-kelurahan-options"
+              autocomplete="off"
+              placeholder="-- Pilih Kelurahan --"
+              class="cms-input w-full pr-9 font-light"
+              :disabled="!kecamatan || villages.length === 0"
+              data-testid="public-list-kelurahan"
+            />
+            <datalist id="pf-kelurahan-options" data-testid="public-list-kelurahan-options">
+              <option v-for="village in villages" :key="village.id" :value="village.name" />
+            </datalist>
             <span class="pointer-events-none absolute inset-y-0 right-3 flex items-center text-ink-900"><MaskIcon :src="iconChevronDown" :size="16" /></span>
           </div>
         </div>
@@ -305,10 +329,10 @@ onBeforeUnmount(() => controller?.abort())
         </fieldset>
 
         <div class="flex flex-col gap-1">
-          <label for="pf-budget" class="text-xs leading-[1.4] text-ink-900">Budget</label>
+          <label for="pf-harga" class="text-xs leading-[1.4] text-ink-900">Harga</label>
           <div class="relative">
-            <select id="pf-budget" v-model="budget" class="cms-input w-full appearance-none pr-9 font-light" data-testid="public-list-budget">
-              <option v-for="option in BUDGETS" :key="option.value" :value="option.value">{{ option.label }}</option>
+            <select id="pf-harga" v-model="harga" class="cms-input w-full appearance-none pr-9 font-light" data-testid="public-list-harga">
+              <option v-for="option in PRICE_RANGES" :key="option.value" :value="option.value">{{ option.label }}</option>
             </select>
             <span class="pointer-events-none absolute inset-y-0 right-3 flex items-center text-ink-900"><MaskIcon :src="iconChevronDown" :size="16" /></span>
           </div>

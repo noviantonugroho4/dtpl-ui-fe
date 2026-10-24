@@ -49,7 +49,9 @@ describe('PublicWisataDetailView', () => {
     expect(wrapper.find('[data-testid="public-detail-alamat"]').text()).toContain('Kelurahan Pulau Pari, Kecamatan Kepulauan Seribu Selatan, DKI Jakarta')
     expect(wrapper.find('[data-testid="public-detail-harga"]').text()).toBe('Gratis')
     expect(wrapper.find('[data-testid="public-detail-fasilitas"]').findAll('li').map((li) => li.text())).toEqual(['Mushola 1', 'Mushola 2'])
-    expect(wrapper.text()).not.toContain('Sewa Payung')
+    const service = wrapper.find('[data-testid="public-detail-service-s-1"]')
+    expect(service.text()).toContain('Sewa Payung')
+    expect(service.text()).toContain('15.000')
 
     expect(wrapper.find('[data-testid="public-detail-map-open"]').attributes('href')).toBe(wisata.mapsLink)
     expect(wrapper.find('[data-testid="public-detail-map-link"]').text()).toBe(wisata.mapsLink)

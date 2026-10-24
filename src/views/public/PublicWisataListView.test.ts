@@ -71,19 +71,22 @@ describe('PublicWisataListView', () => {
     expect(api.listWisata).toHaveBeenCalledWith(expect.objectContaining({ jenis: 'wisata_bahari', page: 1, limit: 10 }), expect.any(AbortSignal))
   })
 
-  it('fetches every page once for client-side filters (budget, search) and narrows jenis to one server-side', async () => {
+  it('fetches every page once for client-side filters (harga, search) and narrows jenis to one server-side', async () => {
     const wrapper = mount(PublicWisataListView)
     await flushPromises()
     expect(wrapper.findAll('[data-testid^="public-list-card-"][data-testid$="-nama"]')).toHaveLength(3)
 
     api.listWisata.mockClear()
-    await wrapper.find('[data-testid="public-list-budget"]').setValue('gratis')
+    await wrapper.find('[data-testid="public-list-harga"]').setValue('50k-200k')
     await flushPromises()
     expect(api.listWisata).toHaveBeenCalledTimes(1)
     expect(api.listWisata).toHaveBeenCalledWith(expect.objectContaining({ page: 1, limit: 50 }), expect.any(AbortSignal))
-    expect(wrapper.findAll('[data-testid$="-nama"]').map((c) => c.text())).toEqual(['Pantai Pulau Tidung'])
+    expect(wrapper.findAll('[data-testid$="-nama"]').map((c) => c.text())).toEqual(['Snorkling Kep. Seribu'])
 
-    await wrapper.find('[data-testid="public-list-budget"]').setValue('')
+    await wrapper.find('[data-testid="public-list-harga"]').setValue('lt50k')
+    expect(wrapper.findAll('[data-testid$="-nama"]').map((c) => c.text())).toEqual(['Pantai Pulau Tidung', 'Gua Matu'])
+
+    await wrapper.find('[data-testid="public-list-harga"]').setValue('')
     await wrapper.find('[data-testid="public-list-search"]').setValue('gua')
     await flushPromises()
     expect(api.listWisata).toHaveBeenCalledTimes(2) // kembali ke mode server, lalu mode klien memakai cache
@@ -97,6 +100,33 @@ describe('PublicWisataListView', () => {
     }
     await flushPromises()
     expect(api.listWisata).toHaveBeenLastCalledWith(expect.objectContaining({ jenis: 'wisata_bahari', limit: 10 }), expect.any(AbortSignal))
+  })
+
+  it('labels the price filter "Harga" with the PRD ranges', async () => {
+    const wrapper = mount(PublicWisataListView)
+    await flushPromises()
+    expect(wrapper.find('label[for="pf-harga"]').text()).toBe('Harga')
+    expect(wrapper.findAll('[data-testid="public-list-harga"] option').map((o) => o.text())).toEqual([
+      '-- Pilih Harga --',
+      '< Rp 50.000',
+      'Rp 50.000 – Rp 200.000',
+      'Rp 200.001 – Rp 500.000',
+      'Rp 500.001 – Rp 1.000.000',
+      '> Rp 1.000.000',
+    ])
+  })
+
+  it('shows every destination when all Jenis Wisata checkboxes are cleared', async () => {
+    const wrapper = mount(PublicWisataListView)
+    await flushPromises()
+    api.listWisata.mockClear()
+    for (const type of ['wisata_bahari', 'wisata_alam', 'wisata_rekreasi', 'wisata_budaya_dan_sejarah']) {
+      await wrapper.find(`[data-testid="public-list-type-${type}"]`).setValue(false)
+    }
+    await flushPromises()
+    expect(wrapper.find('[data-testid="public-list-empty"]').exists()).toBe(false)
+    expect(wrapper.findAll('[data-testid$="-nama"]')).toHaveLength(3)
+    expect(api.listWisata).toHaveBeenLastCalledWith(expect.objectContaining({ jenis: undefined, limit: 10 }), expect.any(AbortSignal))
   })
 
   it('hides pagination and shows "Data tidak ditemukan!" when a search matches nothing across all pages', async () => {
@@ -138,15 +168,19 @@ describe('PublicWisataListView', () => {
     await flushPromises()
 
     expect(location.listDistricts).toHaveBeenCalledWith('18.13')
-    expect(wrapper.findAll('[data-testid="public-list-kecamatan"] option').map((o) => o.text())).toEqual(['-- Pilih Kecamatan --', 'Pesisir Tengah', 'Pesisir Selatan'])
-    expect((wrapper.find('[data-testid="public-list-kelurahan"]').element as HTMLSelectElement).disabled).toBe(true)
+    expect(wrapper.findAll('[data-testid="public-list-kecamatan-options"] option').map((o) => o.attributes('value'))).toEqual(['Pesisir Tengah', 'Pesisir Selatan'])
+    expect((wrapper.find('[data-testid="public-list-kelurahan"]').element as HTMLInputElement).disabled).toBe(true)
 
     api.listWisata.mockClear()
-    await wrapper.find('[data-testid="public-list-kecamatan"]').setValue('Pesisir Tengah')
+    // Mengetik sebagian nama belum memfilter; filter aktif saat cocok dengan nama di daftar (tanpa beda huruf besar/kecil).
+    await wrapper.find('[data-testid="public-list-kecamatan"]').setValue('Pesisir')
+    await flushPromises()
+    expect(api.listWisata).not.toHaveBeenCalled()
+    await wrapper.find('[data-testid="public-list-kecamatan"]').setValue('pesisir tengah')
     await flushPromises()
     expect(location.listVillages).toHaveBeenCalledWith('18.13.01')
     expect(api.listWisata).toHaveBeenLastCalledWith(expect.objectContaining({ kecamatan: 'Pesisir Tengah', page: 1 }), expect.any(AbortSignal))
-    expect(wrapper.findAll('[data-testid="public-list-kelurahan"] option').map((o) => o.text())).toEqual(['-- Pilih Kelurahan --', 'Pasar Krui'])
+    expect(wrapper.findAll('[data-testid="public-list-kelurahan-options"] option').map((o) => o.attributes('value'))).toEqual(['Pasar Krui'])
 
     await wrapper.find('[data-testid="public-list-kelurahan"]').setValue('Pasar Krui')
     await flushPromises()

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, reactive, ref } from 'vue'
+import { computed, onBeforeUnmount, reactive, ref, watch } from 'vue'
 import { RouterLink, useRouter } from 'vue-router'
 import { ApiError } from '@/api/client'
 import { errorMessageFor } from '@/api/errorMessages'
@@ -213,8 +213,11 @@ onBeforeUnmount(() => images.value.forEach(releasePreview))
 
 // ---- dynamic lists -------------------------------------------------------
 
+const facilityLimitReached = computed(() => fasilitas.value.length >= WISATA_MAX_FACILITIES)
+const FACILITY_LIMIT_MESSAGE = `Tidak bisa menambah baris fasilitas, maksimal ${WISATA_MAX_FACILITIES} Poin!`
+
 function addFacility() {
-  if (fasilitas.value.length < WISATA_MAX_FACILITIES) fasilitas.value.push('')
+  if (!facilityLimitReached.value) fasilitas.value.push('')
 }
 function removeFacility(index: number) {
   fasilitas.value.splice(index, 1)
@@ -231,10 +234,21 @@ function removeService(index: number) {
 // ---- validation ----------------------------------------------------------
 
 const PHONE_DIGITS = /^[0-9]{8,13}$/
+/** Karakter yang boleh diketik di kolom nomor: angka, spasi, tanda hubung, dan "+". */
+const PHONE_CHARS = /^[\d\s+-]*$/
 const MAPS_HOSTS = ['google.com/maps', 'google.co.id/maps', 'maps.app.goo.gl', 'goo.gl/maps', 'maps.google.']
 
 function phoneDigits(raw: string): string {
   return raw.replace(/\D/g, '').replace(/^(62|0)+/, '')
+}
+
+function isValidPhone(raw: string): boolean {
+  return PHONE_CHARS.test(raw) && PHONE_DIGITS.test(phoneDigits(raw))
+}
+
+/** Pesan langsung saat mengetik huruf/simbol di kolom nomor, sebelum Simpan. */
+function phoneCharError(raw: string, label: string): string | null {
+  return PHONE_CHARS.test(raw) ? null : `${label} hanya boleh berisi angka.`
 }
 
 function isMapsLink(value: string): boolean {
@@ -268,11 +282,11 @@ function validate(): boolean {
 
   if (!form.jenis) errors.jenis = 'Pilih jenis wisata.'
 
-  const telp = phoneDigits(form.telp)
-  if (!telp) errors.telp = required
-  else if (!PHONE_DIGITS.test(telp)) errors.telp = 'Nomor telepon harus 8–13 digit setelah +62.'
-  const wa = phoneDigits(form.wa)
-  if (wa && !PHONE_DIGITS.test(wa)) errors.wa = 'Nomor WhatsApp harus 8–13 digit setelah +62.'
+  if (!form.telp.trim()) errors.telp = required
+  else errors.telp = phoneCharError(form.telp, 'No. Telp') ?? (isValidPhone(form.telp) ? null : 'Nomor telepon harus 8–13 digit setelah +62.')
+  if (form.wa.trim()) {
+    errors.wa = phoneCharError(form.wa, 'No. Whatsapp') ?? (isValidPhone(form.wa) ? null : 'Nomor WhatsApp harus 8–13 digit setelah +62.')
+  }
 
   if (!form.alamat.trim()) errors.alamat = required
   if (!form.provinsi) errors.provinsi = 'Pilih provinsi.'
@@ -308,13 +322,31 @@ const hasRequiredInput = computed(
     form.nama.trim() !== '' &&
     images.value.length > 0 &&
     form.jenis !== '' &&
-    form.telp.trim() !== '' &&
+    isValidPhone(form.telp) &&
+    (form.wa.trim() === '' || isValidPhone(form.wa)) &&
     form.alamat.trim() !== '' &&
     form.kelurahan !== '' &&
     form.mapsLink.trim() !== '' &&
     cleanFacilities.value.length > 0,
 )
 const canSubmit = computed(() => hasRequiredInput.value && !submitting.value)
+
+watch(() => form.telp, (value) => (errors.telp = phoneCharError(value, 'No. Telp')))
+watch(() => form.wa, (value) => (errors.wa = phoneCharError(value, 'No. Whatsapp')))
+
+/** Deskripsi dibatasi saat mengetik: kelebihan karakter dipotong dan pesan langsung tampil. */
+const DESCRIPTION_LIMIT_MESSAGE = `Maksimal ${WISATA_DESCRIPTION_MAX} karakter!`
+watch(
+  () => form.deskripsi,
+  (value) => {
+    if (value.length > WISATA_DESCRIPTION_MAX) {
+      form.deskripsi = value.slice(0, WISATA_DESCRIPTION_MAX)
+      errors.deskripsi = DESCRIPTION_LIMIT_MESSAGE
+    } else if (value.length < WISATA_DESCRIPTION_MAX && errors.deskripsi === DESCRIPTION_LIMIT_MESSAGE) {
+      errors.deskripsi = null
+    }
+  },
+)
 
 function buildPayload(): CreateWisataRequest {
   const wa = phoneDigits(form.wa)
@@ -632,15 +664,21 @@ void loadProvinces()
               <MaskIcon :src="iconX" :size="16" />
             </button>
           </div>
-          <button data-testid="wisata-form-fasilitas-add"
-            v-if="fasilitas.length < WISATA_MAX_FACILITIES"
-            type="button"
-            class="flex size-7 items-center justify-center rounded-lg bg-brand-500 text-canvas hover:bg-brand-600"
-            aria-label="Tambah fasilitas"
-            @click="addFacility"
-          >
-            <MaskIcon :src="iconPlusSquare" :size="16" />
-          </button>
+          <div class="flex flex-wrap items-center gap-2.5">
+            <button data-testid="wisata-form-fasilitas-add"
+              type="button"
+              class="flex size-7 items-center justify-center rounded-lg bg-brand-500 text-canvas hover:bg-brand-600 disabled:cursor-not-allowed disabled:bg-ink-300"
+              aria-label="Tambah fasilitas"
+              :disabled="facilityLimitReached"
+              :aria-describedby="facilityLimitReached ? 'f-fasilitas-limit' : undefined"
+              @click="addFacility"
+            >
+              <MaskIcon :src="iconPlusSquare" :size="16" />
+            </button>
+            <p v-if="facilityLimitReached" id="f-fasilitas-limit" class="text-[10px] leading-[1.2] text-[#ff383c]" role="alert" data-testid="wisata-form-fasilitas-limit">
+              {{ FACILITY_LIMIT_MESSAGE }}
+            </p>
+          </div>
         </div>
       </FormRow>
 

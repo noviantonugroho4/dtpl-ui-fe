@@ -3,7 +3,7 @@ import { ref } from 'vue'
 import { RouterLink } from 'vue-router'
 import { ApiError } from '@/api/client'
 import { errorMessageFor } from '@/api/errorMessages'
-import { getNewestWisata, type LandingWisata } from '@/api/landing'
+import { getLandingSections, type LandingWisata } from '@/api/landing'
 import type { WisataType } from '@/api/types'
 import MaskIcon from '@/components/MaskIcon.vue'
 import WisataCarousel from '@/components/public/WisataCarousel.vue'
@@ -21,23 +21,23 @@ const CATEGORIES: { jenis: WisataType; lines: [string, string]; icon: string }[]
   { jenis: 'wisata_budaya_dan_sejarah', lines: ['Wisata Budaya', 'dan Sejarah'], icon: catBudaya },
 ]
 
-/**
- * SEMENTARA: kedua carousel memakai data yang sama (createdAt terbaru) sampai
- * API menyediakan penanda destinasi unggulan.
- */
+/** Destinasi Baru (createdAt terbaru) dan Unggulan (lihat src/api/landing.ts), 5 kartu masing-masing. */
 const newest = ref<LandingWisata[]>([])
-const loadingNewest = ref(true)
-const newestError = ref<string | null>(null)
+const featured = ref<LandingWisata[]>([])
+const loading = ref(true)
+const loadError = ref<string | null>(null)
 
 async function load() {
-  loadingNewest.value = true
-  newestError.value = null
+  loading.value = true
+  loadError.value = null
   try {
-    newest.value = await getNewestWisata(6)
+    const sections = await getLandingSections()
+    newest.value = sections.newest
+    featured.value = sections.featured
   } catch (err) {
-    newestError.value = err instanceof ApiError ? errorMessageFor(err.code, err.message) : errorMessageFor('UNKNOWN_ERROR')
+    loadError.value = err instanceof ApiError ? errorMessageFor(err.code, err.message) : errorMessageFor('UNKNOWN_ERROR')
   } finally {
-    loadingNewest.value = false
+    loading.value = false
   }
 }
 
@@ -87,13 +87,13 @@ void load()
       </nav>
     </section>
 
-    <!-- Destinasi Unggulan: sementara memakai urutan createdAt terbaru (lihat src/api/landing.ts) -->
+    <!-- Destinasi Unggulan: sementara judul terpanjang (lihat src/api/landing.ts) -->
     <WisataCarousel
       title="Destinasi Unggulan"
       subtitle="Tempat pilihan terbaik untuk perjalananmu selanjutnya"
-      :items="newest"
-      :loading="loadingNewest"
-      :error="newestError"
+      :items="featured"
+      :loading="loading"
+      :error="loadError"
       empty-text="Belum ada destinasi unggulan."
       testid="landing-featured"
     />
@@ -103,8 +103,8 @@ void load()
       title="Destinasi Baru"
       subtitle="Eksplorasi spot-spot wisata terbaru yang wajib masuk daftar perjalananmu"
       :items="newest"
-      :loading="loadingNewest"
-      :error="newestError"
+      :loading="loading"
+      :error="loadError"
       empty-text="Belum ada destinasi baru."
       testid="landing-newest"
     />

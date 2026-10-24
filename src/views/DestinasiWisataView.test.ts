@@ -100,17 +100,36 @@ describe('DestinasiWisataView', () => {
     expect(api.listWisata).toHaveBeenCalledWith({ page: 1, limit: 10, kecamatan: 'Pesisir Selatan' }, expect.any(AbortSignal))
   })
 
-  it('filters the loaded rows by name when searching', async () => {
+  it('filters rows by name when searching', async () => {
     api.listWisata.mockResolvedValue(listResponse([makeWisata(), makeWisata({ id: 'id-2', nama: 'Gua Matu' })]))
     const wrapper = mount(DestinasiWisataView)
     await flushPromises()
 
     await wrapper.find('#filter-search').setValue('gua')
+    await flushPromises()
     expect(wrapper.findAll('tbody tr')).toHaveLength(1)
     expect(wrapper.find('tbody').text()).toContain('Gua Matu')
 
     await wrapper.find('#filter-search').setValue('zzz')
     expect(wrapper.find('tbody').text()).toContain('Data tidak ditemukan!')
+  })
+
+  it('searches across every API page and sizes the pagination to the matches', async () => {
+    const pageOne = Array.from({ length: 50 }, (_, i) => makeWisata({ id: `a-${i}`, nama: `Pantai ${i}` }))
+    api.listWisata
+      .mockResolvedValueOnce(listResponse(pageOne.slice(0, 10), { page: 1, limit: 10, total: 35, totalPages: 4 }))
+      .mockResolvedValueOnce(listResponse(pageOne, { page: 1, limit: 50, total: 51, totalPages: 2 }))
+      .mockResolvedValueOnce(listResponse([makeWisata({ id: 'm-1', nama: 'Gunung Merbabu' })], { page: 2, limit: 50, total: 51, totalPages: 2 }))
+    const wrapper = mount(DestinasiWisataView)
+    await flushPromises()
+    expect(wrapper.findAll('[data-testid^="pagination-page-"]')).toHaveLength(4)
+
+    await wrapper.find('#filter-search').setValue('merbabu')
+    await flushPromises()
+    expect(api.listWisata).toHaveBeenCalledWith({ page: 2, limit: 50, kecamatan: undefined }, expect.any(AbortSignal))
+    expect(wrapper.findAll('tbody tr')).toHaveLength(1)
+    expect(wrapper.find('tbody').text()).toContain('Gunung Merbabu')
+    expect(wrapper.findAll('[data-testid^="pagination-page-"]')).toHaveLength(1)
   })
 
   it('requests the next page from the pagination control', async () => {

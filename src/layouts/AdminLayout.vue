@@ -97,15 +97,25 @@ async function onLogout() {
             <div class="h-px w-full bg-ink-200" />
           </div>
           <div class="flex flex-col overflow-clip rounded-lg">
-            <RouterLink :data-testid="`nav-${item.name}`"
+            <RouterLink
               v-for="item in section"
               :key="item.name"
               :to="{ name: item.name }"
-              class="flex w-full items-center gap-3 rounded-lg px-4 py-3 text-xs leading-[1.4] text-ink-900 hover:bg-brand-50"
-              active-class="bg-brand-500 text-sm text-canvas hover:bg-brand-500"
+              v-slot="{ href, navigate, isActive }"
+              custom
             >
-              <MaskIcon :src="item.icon" />
-              <span class="min-w-0 flex-1 wrap-break-word">{{ item.label }}</span>
+              <!-- Kelas aktif dipasang eksklusif agar text-canvas tidak kalah oleh text-ink-900 -->
+              <a
+                :href="href"
+                class="flex w-full items-center gap-3 rounded-lg px-4 py-3 leading-[1.4]"
+                :class="isActive ? 'bg-brand-500 text-sm font-medium text-canvas' : 'text-xs text-ink-900 hover:bg-brand-50'"
+                :aria-current="isActive ? 'page' : undefined"
+                :data-testid="`nav-${item.name}`"
+                @click="navigate"
+              >
+                <MaskIcon :src="item.icon" />
+                <span class="min-w-0 flex-1 wrap-break-word">{{ item.label }}</span>
+              </a>
             </RouterLink>
           </div>
         </template>
