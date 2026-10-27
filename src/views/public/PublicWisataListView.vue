@@ -15,6 +15,7 @@ import iconHome from '@/assets/icons/home.svg'
 import iconChevronRight from '@/assets/icons/chevron-right.svg'
 import iconSearch from '@/assets/icons/search.svg'
 import iconChevronDown from '@/assets/icons/chevron-down.svg'
+import iconFilter from '@/assets/icons/filter.svg'
 
 const PAGE_SIZE = 10
 /** Batas API per panggilan saat mengambil semua halaman untuk penyaringan di klien. */
@@ -22,6 +23,8 @@ const FETCH_ALL_LIMIT = 50
 /** Pengaman agar pengambilan semua halaman tidak tak berhingga. */
 const FETCH_ALL_MAX_PAGES = 40
 const ALL_TYPES = Object.keys(WISATA_TYPE_LABELS) as WisataType[]
+/** Urutan checkbox Jenis Wisata sesuai Figma 666:12139. */
+const TYPE_ORDER: WisataType[] = ['wisata_bahari', 'wisata_alam', 'wisata_rekreasi', 'wisata_budaya_dan_sejarah']
 
 /** Rentang harga tiket sesuai PRD; disaring di sisi klien karena API belum punya filter harga. */
 const PRICE_RANGES = [
@@ -77,6 +80,23 @@ const kelurahan = computed(() => matchName(villages.value, kelurahanInput.value)
 
 /** Tidak ada jenis dicentang = semua jenis (bukan hasil kosong). */
 const activeTypes = computed<WisataType[]>(() => (types.value.length === 0 ? ALL_TYPES : types.value))
+
+/** Checkbox "Semua Jenis Wisata": tercentang bila semua jenis dicentang; klik = centang/lepas semua. */
+const allTypesChecked = computed({
+  get: () => types.value.length === ALL_TYPES.length,
+  set: (checked: boolean) => {
+    types.value = checked ? [...ALL_TYPES] : []
+  },
+})
+
+function clearFilters() {
+  search.value = ''
+  kecamatanInput.value = ''
+  kelurahanInput.value = ''
+  popularity.value = 'desc'
+  types.value = [...ALL_TYPES]
+  harga.value = ''
+}
 
 /** API hanya menerima satu `jenis`; kalau tepat satu dipilih, saring di server. */
 const serverJenis = computed(() => (activeTypes.value.length === 1 ? activeTypes.value[0] : undefined))
@@ -247,25 +267,25 @@ onBeforeUnmount(() => controller?.abort())
 
     <!-- Results (Figma 496:7814) -->
     <section class="flex w-full flex-col gap-6 rounded-[20px] bg-white p-4 sm:p-8 md:flex-row md:items-start">
-      <!-- Filter menu (Figma 496:7815) -->
-      <aside class="flex w-full shrink-0 flex-col gap-6 rounded-lg border border-ink-200 bg-white p-4 md:w-[240px]" aria-label="Filter" data-testid="public-list-filters">
-        <div class="flex flex-col gap-1">
-          <label for="pf-search" class="text-xs leading-none text-black">Cari</label>
+      <!-- Filter menu (Figma 666:12139) -->
+      <aside class="flex w-full shrink-0 flex-col gap-6 rounded-lg border border-ink-200 bg-white p-5 md:w-[260px]" aria-label="Filter" data-testid="public-list-filters">
+        <div class="flex flex-col gap-2">
+          <label for="pf-search" class="text-sm leading-[1.4] text-ink-900">Cari</label>
           <div class="relative">
             <input
               id="pf-search"
               v-model="search"
               type="search"
               placeholder="Cari"
-              class="cms-input w-full pr-9"
+              class="cms-input h-9 w-full rounded-xl pr-10 text-sm"
               data-testid="public-list-search"
             />
-            <span class="pointer-events-none absolute inset-y-0 right-3 flex items-center text-ink-900"><MaskIcon :src="iconSearch" :size="16" /></span>
+            <span class="pointer-events-none absolute inset-y-0 right-3 flex items-center text-ink-900"><MaskIcon :src="iconSearch" :size="18" /></span>
           </div>
         </div>
 
-        <div class="flex flex-col gap-1">
-          <label for="pf-kecamatan" class="text-xs leading-[1.4] text-ink-900">Kecamatan</label>
+        <div class="flex flex-col gap-2">
+          <label for="pf-kecamatan" class="text-sm leading-[1.4] text-ink-900">Kecamatan</label>
           <div class="relative">
             <input
               id="pf-kecamatan"
@@ -274,21 +294,21 @@ onBeforeUnmount(() => controller?.abort())
               list="pf-kecamatan-options"
               autocomplete="off"
               placeholder="-- Pilih Kecamatan --"
-              class="cms-input w-full pr-9 font-light"
+              class="cms-input h-9 w-full rounded-xl pr-10 text-sm placeholder:text-ink-900"
               data-testid="public-list-kecamatan"
             />
             <datalist id="pf-kecamatan-options" data-testid="public-list-kecamatan-options">
               <option v-for="district in districts" :key="district.id" :value="district.name" />
             </datalist>
-            <span class="pointer-events-none absolute inset-y-0 right-3 flex items-center text-ink-900"><MaskIcon :src="iconChevronDown" :size="16" /></span>
+            <span class="pointer-events-none absolute inset-y-0 right-3 flex items-center text-ink-900"><MaskIcon :src="iconChevronDown" :size="18" /></span>
           </div>
           <p v-if="districtsError" class="text-[10px] text-[#ff383c]" role="alert" data-testid="public-list-kecamatan-error">
             Daftar kecamatan gagal dimuat. <button type="button" class="underline" @click="loadDistricts">Coba lagi</button>
           </p>
         </div>
 
-        <div class="flex flex-col gap-1">
-          <label for="pf-kelurahan" class="text-xs leading-[1.4] text-ink-900">Kelurahan</label>
+        <div class="flex flex-col gap-2">
+          <label for="pf-kelurahan" class="text-sm leading-[1.4] text-ink-900">Kelurahan</label>
           <div class="relative">
             <input
               id="pf-kelurahan"
@@ -297,46 +317,60 @@ onBeforeUnmount(() => controller?.abort())
               list="pf-kelurahan-options"
               autocomplete="off"
               placeholder="-- Pilih Kelurahan --"
-              class="cms-input w-full pr-9 font-light"
+              class="cms-input h-9 w-full rounded-xl pr-10 text-sm placeholder:text-ink-900"
               :disabled="!kecamatan || villages.length === 0"
               data-testid="public-list-kelurahan"
             />
             <datalist id="pf-kelurahan-options" data-testid="public-list-kelurahan-options">
               <option v-for="village in villages" :key="village.id" :value="village.name" />
             </datalist>
-            <span class="pointer-events-none absolute inset-y-0 right-3 flex items-center text-ink-900"><MaskIcon :src="iconChevronDown" :size="16" /></span>
+            <span class="pointer-events-none absolute inset-y-0 right-3 flex items-center text-ink-900"><MaskIcon :src="iconChevronDown" :size="18" /></span>
           </div>
         </div>
 
         <fieldset class="flex flex-col gap-3" data-testid="public-list-popularity">
-          <legend class="mb-3 text-sm font-semibold text-ink-900">Paling Banyak Diminati</legend>
-          <label class="flex items-center gap-2 text-xs text-ink-900">
-            <input v-model="popularity" type="radio" value="desc" class="accent-brand-500" data-testid="public-list-popularity-desc" />
+          <legend class="mb-3 text-sm leading-[1.4] text-ink-900">Paling Banyak Diminati</legend>
+          <label class="flex items-center gap-3 text-sm text-ink-900">
+            <input v-model="popularity" type="radio" value="desc" class="size-4 accent-ink-900" data-testid="public-list-popularity-desc" />
             Tinggi ke rendah
           </label>
-          <label class="flex items-center gap-2 text-xs text-ink-900">
-            <input v-model="popularity" type="radio" value="asc" class="accent-brand-500" data-testid="public-list-popularity-asc" />
+          <label class="flex items-center gap-3 text-sm text-ink-900">
+            <input v-model="popularity" type="radio" value="asc" class="size-4 accent-ink-900" data-testid="public-list-popularity-asc" />
             Rendah ke tinggi
           </label>
         </fieldset>
 
         <fieldset class="flex flex-col gap-3" data-testid="public-list-types">
-          <legend class="mb-3 text-sm font-semibold text-ink-900">Jenis Wisata</legend>
-          <label v-for="(label, value) in WISATA_TYPE_LABELS" :key="value" class="flex items-center gap-2 text-xs text-ink-900">
-            <input v-model="types" type="checkbox" :value="value" class="accent-brand-500" :data-testid="`public-list-type-${value}`" />
-            {{ label }}
+          <legend class="mb-3 text-sm leading-[1.4] text-ink-900">Jenis Wisata</legend>
+          <label class="flex items-center gap-3 text-sm text-ink-900">
+            <input v-model="allTypesChecked" type="checkbox" class="size-4 accent-ink-900" data-testid="public-list-type-all" />
+            Semua Jenis Wisata
+          </label>
+          <label v-for="value in TYPE_ORDER" :key="value" class="flex items-center gap-3 text-sm text-ink-900">
+            <input v-model="types" type="checkbox" :value="value" class="size-4 accent-ink-900" :data-testid="`public-list-type-${value}`" />
+            {{ WISATA_TYPE_LABELS[value] }}
           </label>
         </fieldset>
 
-        <div class="flex flex-col gap-1">
-          <label for="pf-harga" class="text-xs leading-[1.4] text-ink-900">Harga</label>
+        <div class="flex flex-col gap-2">
+          <label for="pf-harga" class="text-sm leading-[1.4] text-ink-900">Harga</label>
           <div class="relative">
-            <select id="pf-harga" v-model="harga" class="cms-input w-full appearance-none pr-9 font-light" data-testid="public-list-harga">
+            <select id="pf-harga" v-model="harga" class="cms-input h-9 w-full appearance-none rounded-xl pr-10 text-sm" data-testid="public-list-harga">
               <option v-for="option in PRICE_RANGES" :key="option.value" :value="option.value">{{ option.label }}</option>
             </select>
-            <span class="pointer-events-none absolute inset-y-0 right-3 flex items-center text-ink-900"><MaskIcon :src="iconChevronDown" :size="16" /></span>
+            <span class="pointer-events-none absolute inset-y-0 right-3 flex items-center text-ink-900"><MaskIcon :src="iconChevronDown" :size="18" /></span>
           </div>
         </div>
+
+        <button
+          type="button"
+          class="flex w-fit items-center gap-2 rounded-lg bg-brand-500 px-4 py-2 text-sm font-medium text-white hover:bg-brand-600 focus-visible:ring-2 focus-visible:ring-brand-500/40 focus-visible:outline-none"
+          data-testid="public-list-clear"
+          @click="clearFilters"
+        >
+          <MaskIcon :src="iconFilter" :size="18" />
+          Bersihkan Filter
+        </button>
       </aside>
 
       <!-- Grid (Figma 496:7851) -->

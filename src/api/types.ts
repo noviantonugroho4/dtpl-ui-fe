@@ -174,6 +174,13 @@ export interface LocationPlace extends LocationShortItem {
   total_area?: number
 }
 
+/** GET /api/v1/location/village-detail/{village_code}. */
+export interface LocationVillageDetail extends LocationShortItem {
+  province?: LocationShortItem
+  regency?: LocationShortItem
+  district?: LocationShortItem
+}
+
 export interface LocationMeta {
   updated_at: string
   level: number
@@ -181,6 +188,11 @@ export interface LocationMeta {
 
 export interface LocationShortItemsResponse {
   data: LocationShortItem[]
+  meta: LocationMeta
+}
+
+export interface LocationVillageDetailResponse {
+  data: LocationVillageDetail
   meta: LocationMeta
 }
 

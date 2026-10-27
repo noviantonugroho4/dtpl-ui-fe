@@ -129,6 +129,45 @@ describe('PublicWisataListView', () => {
     expect(api.listWisata).toHaveBeenLastCalledWith(expect.objectContaining({ jenis: undefined, limit: 10 }), expect.any(AbortSignal))
   })
 
+  it('lists Jenis Wisata in Figma order with a "Semua Jenis Wisata" toggle that checks or clears every type', async () => {
+    const wrapper = mount(PublicWisataListView)
+    await flushPromises()
+    const labels = wrapper.findAll('[data-testid="public-list-types"] label').map((l) => l.text())
+    expect(labels).toEqual(['Semua Jenis Wisata', 'Wisata Bahari', 'Wisata Alam', 'Wisata Rekreasi', 'Wisata Budaya dan Sejarah'])
+
+    const all = wrapper.find('[data-testid="public-list-type-all"]')
+    expect((all.element as HTMLInputElement).checked).toBe(true)
+    await wrapper.find('[data-testid="public-list-type-wisata_alam"]').setValue(false)
+    expect((all.element as HTMLInputElement).checked).toBe(false)
+
+    await all.setValue(true)
+    for (const type of ['wisata_bahari', 'wisata_alam', 'wisata_rekreasi', 'wisata_budaya_dan_sejarah']) {
+      expect((wrapper.find(`[data-testid="public-list-type-${type}"]`).element as HTMLInputElement).checked).toBe(true)
+    }
+    await all.setValue(false)
+    expect(wrapper.findAll('[data-testid="public-list-types"] input:checked')).toHaveLength(0)
+  })
+
+  it('"Bersihkan Filter" resets every filter to its default', async () => {
+    const wrapper = mount(PublicWisataListView)
+    await flushPromises()
+    await wrapper.find('[data-testid="public-list-search"]').setValue('gua')
+    await wrapper.find('[data-testid="public-list-kecamatan"]').setValue('Pesisir Tengah')
+    await wrapper.find('[data-testid="public-list-popularity-asc"]').setValue(true)
+    await wrapper.find('[data-testid="public-list-type-wisata_alam"]').setValue(false)
+    await wrapper.find('[data-testid="public-list-harga"]').setValue('lt50k')
+    await flushPromises()
+
+    await wrapper.find('[data-testid="public-list-clear"]').trigger('click')
+    await flushPromises()
+    expect((wrapper.find('[data-testid="public-list-search"]').element as HTMLInputElement).value).toBe('')
+    expect((wrapper.find('[data-testid="public-list-kecamatan"]').element as HTMLInputElement).value).toBe('')
+    expect((wrapper.find('[data-testid="public-list-popularity-desc"]').element as HTMLInputElement).checked).toBe(true)
+    expect((wrapper.find('[data-testid="public-list-type-all"]').element as HTMLInputElement).checked).toBe(true)
+    expect((wrapper.find('[data-testid="public-list-harga"]').element as HTMLSelectElement).value).toBe('')
+    expect(wrapper.findAll('[data-testid$="-nama"]')).toHaveLength(3)
+  })
+
   it('hides pagination and shows "Data tidak ditemukan!" when a search matches nothing across all pages', async () => {
     api.listWisata
       .mockResolvedValueOnce(resp([makeWisata()], { page: 1, limit: 10, total: 35, totalPages: 4 }))

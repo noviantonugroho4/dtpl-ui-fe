@@ -4,6 +4,7 @@ import { RouterLink, useRoute } from 'vue-router'
 import { ApiError } from '@/api/client'
 import { errorMessageFor } from '@/api/errorMessages'
 import { getWisata, wisataImageUrl } from '@/api/wisata'
+import { resolveVillageByName, type ResolvedVillage } from '@/api/location'
 import type { Wisata, WisataImage } from '@/api/types'
 import { formatRupiah } from '@/utils/format'
 import MaskIcon from '@/components/MaskIcon.vue'
@@ -17,7 +18,8 @@ import iconMap from '@/assets/icons/map.svg'
 import iconArrowLeft from '@/assets/icons/arrow-left.svg'
 import iconArrowRight from '@/assets/icons/arrow-right.svg'
 import iconX from '@/assets/icons/x.svg'
-import iconWhatsapp from '@/assets/icons/whatsapp.svg'
+import iconCopy from '@/assets/icons/copy.svg'
+import iconShoppingCart from '@/assets/icons/shopping-cart.svg'
 import mapPreviewUrl from '@/assets/landing/map-preview.jpg'
 import placeholderUrl from '@/assets/landing/placeholder.png'
 
@@ -33,6 +35,11 @@ const errorMessage = ref<string | null>(null)
 const brokenImages = ref(new Set<string>())
 /** Indeks gambar yang sedang dibuka di lightbox; null = tertutup. */
 const lightboxIndex = ref<number | null>(null)
+/** Kabupaten & kode pos dari API wilayah (dicari dari nama); null = belum/tidak ditemukan. */
+const region = ref<ResolvedVillage | null>(null)
+/** Umpan balik tombol "Salin" kontak. */
+const copyState = ref<'idle' | 'copied' | 'failed'>('idle')
+let copyTimer: ReturnType<typeof setTimeout> | undefined
 
 const id = computed(() => String(route.params.id ?? ''))
 
@@ -42,6 +49,7 @@ async function load() {
   errorMessage.value = null
   try {
     item.value = (await getWisata(id.value)).data
+    void loadRegion(item.value)
   } catch (err) {
     item.value = null
     if (err instanceof ApiError && err.status === 404) notFound.value = true
@@ -50,6 +58,22 @@ async function load() {
     loading.value = false
   }
 }
+
+async function loadRegion(wisata: Wisata) {
+  region.value = null
+  const resolved = await resolveVillageByName(wisata)
+  // Abaikan hasil untuk destinasi yang sudah tidak ditampilkan.
+  if (item.value?.id === wisata.id) region.value = resolved
+}
+
+/** "Jl..., Kelurahan X, Kecamatan Y, Kabupaten Z, Provinsi 12345"; kabupaten/kode pos muncul bila ditemukan. */
+const alamatLengkap = computed(() => {
+  if (!item.value) return ''
+  const parts = [item.value.alamat, `Kelurahan ${item.value.kelurahan}`, `Kecamatan ${item.value.kecamatan}`]
+  if (region.value?.kabupaten) parts.push(region.value.kabupaten)
+  parts.push([item.value.provinsi, region.value?.kodePos].filter(Boolean).join(' '))
+  return parts.join(', ')
+})
 
 const images = computed<WisataImage[]>(() =>
   [...(item.value?.images ?? [])].sort((a, b) => a.sortOrder - b.sortOrder).filter((image) => !brokenImages.value.has(image.id)),
@@ -78,6 +102,18 @@ const whatsappHref = computed(() => {
   )
 })
 
+async function copyKontak() {
+  if (!item.value) return
+  try {
+    await navigator.clipboard.writeText(item.value.kontakTelp)
+    copyState.value = 'copied'
+  } catch {
+    copyState.value = 'failed'
+  }
+  clearTimeout(copyTimer)
+  copyTimer = setTimeout(() => (copyState.value = 'idle'), 2000)
+}
+
 function openLightbox(index: number) {
   lightboxIndex.value = index
 }
@@ -96,7 +132,10 @@ function onKeydown(event: KeyboardEvent) {
 }
 
 onMounted(() => window.addEventListener('keydown', onKeydown))
-onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
+onBeforeUnmount(() => {
+  window.removeEventListener('keydown', onKeydown)
+  clearTimeout(copyTimer)
+})
 watch(id, () => void load(), { immediate: true })
 </script>
 
@@ -133,34 +172,51 @@ watch(id, () => void load(), { immediate: true })
       </div>
 
       <template v-else-if="item">
-        <h2 class="text-xl leading-[1.2] font-semibold tracking-[-0.6px] text-ink-900" data-testid="public-detail-nama">{{ item.nama }}</h2>
+        <h2 class="text-2xl leading-[1.2] font-semibold tracking-[-0.6px] text-ink-900" data-testid="public-detail-nama">{{ item.nama }}</h2>
 
         <div class="flex flex-col gap-6">
           <dl class="flex flex-col" data-testid="public-detail">
-            <div class="flex flex-col gap-1 py-[9px] sm:flex-row">
-              <dt class="shrink-0 text-xs leading-[1.2] tracking-[-0.36px] text-black sm:w-[128px]">Jenis Wisata</dt>
+            <div class="flex flex-col gap-1 py-2.5 sm:flex-row">
+              <dt class="shrink-0 text-sm leading-[1.4] text-black sm:w-[160px]">Jenis Wisata</dt>
               <dd data-testid="public-detail-jenis"><WisataTypeTag :jenis="item.jenis" /></dd>
             </div>
 
-            <div class="flex flex-col gap-1 py-[9px] sm:flex-row">
-              <dt class="shrink-0 text-xs leading-[1.2] tracking-[-0.36px] text-black sm:w-[128px]">Alamat</dt>
-              <dd class="min-w-0 flex-1 text-xs leading-[1.4] whitespace-pre-line text-ink-900" data-testid="public-detail-alamat">
-                {{ item.alamat }}, Kelurahan {{ item.kelurahan }}, Kecamatan {{ item.kecamatan }}, {{ item.provinsi }}
+            <div class="flex flex-col gap-1 py-2.5 sm:flex-row sm:items-center">
+              <dt class="shrink-0 text-sm leading-[1.4] text-black sm:w-[160px]">Kontak</dt>
+              <dd class="flex min-w-0 flex-1 flex-wrap items-center gap-3 text-sm text-ink-900">
+                <span data-testid="public-detail-kontak">{{ item.kontakTelp }}</span>
+                <button
+                  type="button"
+                  class="inline-flex items-center gap-1 rounded-full bg-canvas px-2 py-1 text-[10px] leading-none text-ink-500 transition hover:bg-ink-200"
+                  :aria-label="`Salin nomor kontak ${item.kontakTelp}`"
+                  data-testid="public-detail-kontak-copy"
+                  @click="copyKontak"
+                >
+                  <MaskIcon :src="iconCopy" :size="14" />
+                  {{ copyState === 'copied' ? 'Tersalin' : copyState === 'failed' ? 'Gagal menyalin' : 'Salin' }}
+                </button>
+              </dd>
+            </div>
+
+            <div class="flex flex-col gap-1 py-2.5 sm:flex-row">
+              <dt class="shrink-0 text-sm leading-[1.4] text-black sm:w-[160px]">Alamat</dt>
+              <dd class="min-w-0 flex-1 text-sm leading-[1.4] whitespace-pre-line text-ink-900" data-testid="public-detail-alamat">
+                {{ alamatLengkap }}
               </dd>
             </div>
 
             <!-- Peta (Figma 496:8397): gambar ilustrasi statis, tombol dan tautan memakai mapsLink asli -->
-            <div class="flex flex-col gap-1 py-[9px] sm:flex-row">
-              <dt class="shrink-0 text-xs leading-[1.2] tracking-[-0.36px] text-black sm:w-[128px]">Link Google Maps</dt>
-              <dd class="w-full max-w-[300px] overflow-hidden rounded-lg border border-ink-200 bg-white" data-testid="public-detail-map">
+            <div class="flex flex-col gap-1 py-2.5 sm:flex-row">
+              <dt class="shrink-0 text-sm leading-[1.4] text-black sm:w-[160px]">Link Google Maps</dt>
+              <dd class="w-full max-w-[360px] overflow-hidden rounded-lg border border-ink-200 bg-white" data-testid="public-detail-map">
                 <div class="relative aspect-square w-full">
                   <img :src="mapPreviewUrl" alt="" class="size-full rounded-t-lg object-cover" width="600" height="600" loading="lazy" aria-hidden="true" />
-                  <div class="absolute bottom-[7px] left-[6.5px] flex gap-2.5">
+                  <div class="absolute bottom-2 left-2 flex gap-2.5">
                     <a
                       :href="routeHref"
                       target="_blank"
                       rel="noopener"
-                      class="inline-flex items-center gap-2 rounded-lg bg-brand-500 px-3 py-2 text-xs leading-none font-medium text-canvas transition hover:bg-brand-600"
+                      class="inline-flex items-center gap-2 rounded-full bg-ink-900/85 px-3.5 py-2 text-sm leading-none text-white shadow-sm backdrop-blur-sm transition hover:bg-ink-900"
                       data-testid="public-detail-map-route"
                     >
                       <MaskIcon :src="iconCornerUpRight" :size="16" />
@@ -170,7 +226,7 @@ watch(id, () => void load(), { immediate: true })
                       :href="item.mapsLink"
                       target="_blank"
                       rel="noopener"
-                      class="inline-flex items-center gap-2 rounded-lg bg-brand-500 px-3 py-2 text-xs leading-none font-medium text-canvas transition hover:bg-brand-600"
+                      class="inline-flex items-center gap-2 rounded-full bg-ink-900/85 px-3.5 py-2 text-sm leading-none text-white shadow-sm backdrop-blur-sm transition hover:bg-ink-900"
                       data-testid="public-detail-map-open"
                     >
                       <MaskIcon :src="iconMap" :size="16" />
@@ -182,7 +238,7 @@ watch(id, () => void load(), { immediate: true })
                   :href="item.mapsLink"
                   target="_blank"
                   rel="noopener"
-                  class="block p-3 text-xs leading-[1.4] break-all text-[#166dba] underline"
+                  class="block px-3 py-2.5 text-sm leading-[1.4] break-all text-[#166dba] underline"
                   data-testid="public-detail-map-link"
                 >
                   {{ item.mapsLink }}
@@ -190,14 +246,14 @@ watch(id, () => void load(), { immediate: true })
               </dd>
             </div>
 
-            <div class="flex flex-col gap-1 py-[9px] sm:flex-row">
-              <dt class="shrink-0 text-xs leading-[1.2] tracking-[-0.36px] text-black sm:w-[128px]">Deskripsi</dt>
-              <dd class="min-w-0 flex-1 text-xs leading-[1.4] whitespace-pre-line text-ink-900" data-testid="public-detail-deskripsi">{{ item.deskripsi || '-' }}</dd>
+            <div class="flex flex-col gap-1 py-2.5 sm:flex-row">
+              <dt class="shrink-0 text-sm leading-[1.4] text-black sm:w-[160px]">Deskripsi</dt>
+              <dd class="min-w-0 flex-1 text-sm leading-[1.4] whitespace-pre-line text-ink-900" data-testid="public-detail-deskripsi">{{ item.deskripsi || '-' }}</dd>
             </div>
 
-            <div class="flex flex-col gap-1 py-[9px] sm:flex-row">
-              <dt class="shrink-0 text-xs leading-[1.2] tracking-[-0.36px] text-black sm:w-[128px]">Fasilitas</dt>
-              <dd class="min-w-0 flex-1 text-xs text-ink-900">
+            <div class="flex flex-col gap-1 py-2.5 sm:flex-row">
+              <dt class="shrink-0 text-sm leading-[1.4] text-black sm:w-[160px]">Fasilitas</dt>
+              <dd class="min-w-0 flex-1 text-sm text-ink-900">
                 <ul v-if="facilities.length" class="list-disc space-y-2.5 pl-4" data-testid="public-detail-fasilitas">
                   <li v-for="facility in facilities" :key="facility.id">{{ facility.facility }}</li>
                 </ul>
@@ -205,14 +261,14 @@ watch(id, () => void load(), { immediate: true })
               </dd>
             </div>
 
-            <div class="flex flex-col gap-1 py-[9px] sm:flex-row">
-              <dt class="shrink-0 text-xs leading-[1.2] tracking-[-0.36px] text-black sm:w-[128px]">Harga Tiket</dt>
-              <dd class="min-w-0 flex-1 text-xs leading-none text-ink-900" data-testid="public-detail-harga">{{ formatRupiah(item.hargaTiket) }}</dd>
+            <div class="flex flex-col gap-1 py-2.5 sm:flex-row">
+              <dt class="shrink-0 text-sm leading-[1.4] text-black sm:w-[160px]">Harga Tiket</dt>
+              <dd class="min-w-0 flex-1 text-sm leading-[1.4] text-ink-900" data-testid="public-detail-harga">{{ formatRupiah(item.hargaTiket) }}</dd>
             </div>
 
-            <div class="flex flex-col gap-1 py-[9px] sm:flex-row">
-              <dt class="shrink-0 text-xs leading-[1.2] tracking-[-0.36px] text-black sm:w-[128px]">Service Objek Wisata</dt>
-              <dd class="min-w-0 flex-1 text-xs text-ink-900">
+            <div class="flex flex-col gap-1 py-2.5 sm:flex-row">
+              <dt class="shrink-0 text-sm leading-[1.4] text-black sm:w-[160px]">Service Objek Wisata</dt>
+              <dd class="min-w-0 flex-1 text-sm text-ink-900">
                 <table v-if="services.length" class="w-full max-w-[420px] border-collapse text-left" data-testid="public-detail-services">
                   <thead>
                     <tr class="border-b-[0.5px] border-[#c6c6c8] font-medium text-black">
@@ -232,16 +288,16 @@ watch(id, () => void load(), { immediate: true })
             </div>
           </dl>
 
-          <!-- Pesan Tiket (Figma 496:8426): langsung ke WhatsApp -->
+          <!-- Pesan Sekarang: tetap langsung ke WhatsApp Admin -->
           <a
             :href="whatsappHref"
             target="_blank"
             rel="noopener"
-            class="inline-flex w-fit items-center gap-1 rounded-lg border border-[#d6ffd0] bg-[#d6ffd0] px-2 py-1 text-xs leading-none font-medium text-[#019606] transition hover:brightness-95"
+            class="inline-flex w-fit items-center gap-2 rounded-lg bg-brand-500 px-5 py-2.5 text-sm leading-none font-medium text-white transition hover:bg-brand-600 focus-visible:ring-2 focus-visible:ring-brand-500/40 focus-visible:outline-none"
             data-testid="public-detail-order"
           >
-            <img :src="iconWhatsapp" alt="" class="size-5" width="20" height="20" />
-            Pesan Tiket
+            <MaskIcon :src="iconShoppingCart" :size="18" />
+            Pesan Sekarang
           </a>
 
           <!-- Galeri (Figma 496:8462) -->

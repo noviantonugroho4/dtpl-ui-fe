@@ -3,6 +3,7 @@ import { flushPromises, mount } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import { ApiError } from '@/api/client'
 import * as wisataApi from '@/api/wisata'
+import * as locationApi from '@/api/location'
 import type { Wisata } from '@/api/types'
 import PublicWisataDetailView from './PublicWisataDetailView.vue'
 
@@ -20,7 +21,10 @@ vi.mock('@/api/wisata', async () => {
   return { ...actual, getWisata: vi.fn() }
 })
 
+vi.mock('@/api/location', () => ({ resolveVillageByName: vi.fn() }))
+
 const api = vi.mocked(wisataApi)
+const location = vi.mocked(locationApi)
 
 const wisata: Wisata = {
   id: 'id-1', nama: 'Snorkling Kep. Seribu', jenis: 'wisata_bahari', kontakTelp: '+628111111111', kontakWa: '+628222222222',
@@ -39,6 +43,7 @@ describe('PublicWisataDetailView', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
     api.getWisata.mockReset().mockResolvedValue({ data: wisata })
+    location.resolveVillageByName.mockReset().mockResolvedValue(null)
   })
 
   it('renders the design rows, map links, WhatsApp order link and a six-slot gallery', async () => {
@@ -107,5 +112,31 @@ describe('PublicWisataDetailView', () => {
     const wrapper = mount(PublicWisataDetailView)
     await flushPromises()
     expect(wrapper.find('[data-testid="public-detail-not-found"]').text()).toContain('Destinasi wisata tidak ditemukan.')
+  })
+
+  it('shows the Kontak number and copies it with "Salin"', async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined)
+    Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true })
+    const wrapper = mount(PublicWisataDetailView)
+    await flushPromises()
+
+    expect(wrapper.find('[data-testid="public-detail-kontak"]').text()).toBe(wisata.kontakTelp)
+    const copy = wrapper.find('[data-testid="public-detail-kontak-copy"]')
+    expect(copy.text()).toBe('Salin')
+    await copy.trigger('click')
+    await flushPromises()
+    expect(writeText).toHaveBeenCalledWith(wisata.kontakTelp)
+    expect(copy.text()).toBe('Tersalin')
+    expect(wrapper.find('[data-testid="public-detail-order"]').text()).toBe('Pesan Sekarang')
+  })
+
+  it('adds kabupaten and kode pos from the location API to Alamat when the kelurahan is found', async () => {
+    location.resolveVillageByName.mockResolvedValue({ kabupaten: 'Kabupaten Administrasi Kepulauan Seribu', kodePos: '14520' })
+    const wrapper = mount(PublicWisataDetailView)
+    await flushPromises()
+    expect(location.resolveVillageByName).toHaveBeenCalledWith(expect.objectContaining({ provinsi: 'DKI Jakarta', kecamatan: 'Kepulauan Seribu Selatan', kelurahan: 'Pulau Pari' }))
+    expect(wrapper.find('[data-testid="public-detail-alamat"]').text()).toBe(
+      'Jl. Pantai Selatan Pulau Pari, Kelurahan Pulau Pari, Kecamatan Kepulauan Seribu Selatan, Kabupaten Administrasi Kepulauan Seribu, DKI Jakarta 14520',
+    )
   })
 })
