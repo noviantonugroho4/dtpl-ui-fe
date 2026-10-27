@@ -205,7 +205,7 @@ describe('DestinasiWisataCreateView', () => {
       },
       'jwt-1',
     )
-    expect(useFlashStore().message).toBe('Destinasi wisata berhasil ditambahkan.')
+    expect(useFlashStore().message).toBe('Destinasi wisata berhasil ditambahkan')
     expect(routerMocks.push).toHaveBeenCalledWith({ name: 'attractions' })
   })
 

@@ -61,13 +61,25 @@ describe('DestinasiWisataView', () => {
     api.listWisata.mockReset()
   })
 
-  it('shows the success notice left by the create page once', async () => {
+  it('shows the success notice left by the create page once, as a dialog closed by Tutup', async () => {
     api.listWisata.mockResolvedValue(listResponse([]))
-    useFlashStore().show('Destinasi wisata berhasil ditambahkan.')
+    useFlashStore().show('Destinasi wisata berhasil ditambahkan')
     const wrapper = mount(DestinasiWisataView)
     await flushPromises()
-    expect(wrapper.find('[role="status"]').text()).toContain('berhasil ditambahkan')
+    const dialog = wrapper.find('[data-testid="wisata-list-notice"]')
+    expect(dialog.attributes('role')).toBe('alertdialog')
+    expect(wrapper.find('[data-testid="wisata-list-notice-title"]').text()).toBe('Destinasi wisata berhasil ditambahkan')
     expect(useFlashStore().message).toBeNull()
+
+    await wrapper.find('[data-testid="wisata-list-notice-close"]').trigger('click')
+    expect(wrapper.find('[data-testid="wisata-list-notice"]').exists()).toBe(false)
+  })
+
+  it('does not show the dialog without a pending notice', async () => {
+    api.listWisata.mockResolvedValue(listResponse([]))
+    const wrapper = mount(DestinasiWisataView)
+    await flushPromises()
+    expect(wrapper.find('[data-testid="wisata-list-notice"]').exists()).toBe(false)
   })
 
   it('renders rows with type tags, kecamatan and a dd-mm-yyyy date', async () => {

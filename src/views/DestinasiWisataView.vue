@@ -9,6 +9,7 @@ import { REGION } from '@/config/region'
 import type { LocationShortItem, PaginationMeta, Wisata } from '@/api/types'
 import { formatDate } from '@/utils/format'
 import { useFlashStore } from '@/stores/flash'
+import AppAlertDialog from '@/components/AppAlertDialog.vue'
 import AppPagination from '@/components/AppPagination.vue'
 import WisataTypeTag from '@/components/WisataTypeTag.vue'
 import MaskIcon from '@/components/MaskIcon.vue'
@@ -43,11 +44,9 @@ const districts = ref<LocationShortItem[]>([])
 
 let controller: AbortController | null = null
 
-/** Success notice handed over by the create page. */
+/** Pesan sukses dari halaman tambah, ditampilkan sebagai dialog (Figma 525:8249). */
 const flash = useFlashStore()
 const notice = ref<string | null>(flash.take())
-let noticeTimer: ReturnType<typeof setTimeout> | null = null
-if (notice.value) noticeTimer = setTimeout(() => (notice.value = null), 6000)
 
 /** API belum punya parameter cari; pencarian nama memaksa mode klien agar pagination mengikuti jumlah hasil. */
 const searchTerm = computed(() => search.value.trim().toLowerCase())
@@ -139,20 +138,12 @@ void loadDistricts()
 
 onBeforeUnmount(() => {
   controller?.abort()
-  if (noticeTimer) clearTimeout(noticeTimer)
 })
 </script>
 
 <template>
   <div class="flex flex-col gap-4" data-testid="wisata-list-page">
-    <p data-testid="wisata-list-notice"
-      v-if="notice"
-      role="status"
-      class="flex items-center justify-between gap-3 rounded-lg border border-green-200 bg-green-50 px-3 py-2 text-xs text-green-800"
-    >
-      {{ notice }}
-      <button data-testid="wisata-list-notice-close" type="button" class="font-semibold underline" aria-label="Tutup pemberitahuan" @click="notice = null">Tutup</button>
-    </p>
+    <AppAlertDialog :open="notice !== null" :title="notice ?? ''" testid="wisata-list-notice" @close="notice = null" />
 
     <!-- Title card (Figma 177:1369) -->
     <section data-testid="wisata-list-title-card" class="flex flex-wrap items-center gap-x-12 gap-y-3 rounded-[20px] bg-white p-4">

@@ -396,7 +396,7 @@ async function onSubmit() {
   submitting.value = true
   try {
     await createWisata(buildPayload(), auth.token ?? '')
-    flash.show('Destinasi wisata berhasil ditambahkan.')
+    flash.show('Destinasi wisata berhasil ditambahkan')
     await router.push({ name: 'attractions' })
   } catch (err) {
     if (err instanceof ApiError) {
