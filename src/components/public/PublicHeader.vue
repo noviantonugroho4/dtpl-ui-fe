@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { RouterLink, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useAuthDialogStore } from '@/stores/authDialog'
+import { useTravelerStore } from '@/stores/traveler'
 import MaskIcon from '@/components/MaskIcon.vue'
 import logoUrl from '@/assets/brand/widewi-logo-horizontal.png'
 import iconInstagram from '@/assets/icons/instagram.svg'
@@ -22,7 +23,11 @@ const PILL_IDLE = 'border-transparent text-ink-900'
 const PILL_ACTIVE = 'border-brand-500 text-brand-500'
 
 const auth = useAuthStore()
+const traveler = useTravelerStore()
 const dialog = useAuthDialogStore()
+
+/** Nama di header: sesi CMS (token) atau sesi wisatawan Google (cookie). */
+const displayName = computed(() => (auth.isAuthenticated && auth.user ? auth.user.username : traveler.user?.username ?? null))
 const router = useRouter()
 const loggingOut = ref(false)
 /** Menu pengguna (Figma 496:6768: header landing dengan nama pengguna menggantikan "Masuk"). */
@@ -33,7 +38,8 @@ async function onLogout() {
   menuOpen.value = false
   loggingOut.value = true
   try {
-    await auth.logout()
+    if (auth.isAuthenticated) await auth.logout()
+    if (traveler.user) await traveler.logout()
   } finally {
     loggingOut.value = false
     if (router.currentRoute.value.meta.requiresAuth) await router.replace({ name: 'home' })
@@ -91,7 +97,7 @@ onBeforeUnmount(() => {
       </a>
     </div>
 
-    <div v-if="auth.isAuthenticated && auth.user" ref="menuRoot" class="relative sm:ml-7">
+    <div v-if="displayName" ref="menuRoot" class="relative sm:ml-7">
       <button
         type="button"
         class="flex items-center gap-2 rounded-lg bg-brand-500 px-3 py-2 text-sm leading-none whitespace-nowrap text-canvas transition hover:bg-brand-600"
@@ -100,7 +106,7 @@ onBeforeUnmount(() => {
         data-testid="public-header-user"
         @click="menuOpen = !menuOpen"
       >
-        {{ auth.user.username }}
+        {{ displayName }}
         <MaskIcon :src="iconChevronDown" :size="14" />
       </button>
       <div
@@ -110,7 +116,7 @@ onBeforeUnmount(() => {
         data-testid="public-header-menu"
       >
         <RouterLink
-          v-if="auth.user.role === 'admin' || auth.user.role === 'editor'"
+          v-if="auth.isAuthenticated && (auth.user?.role === 'admin' || auth.user?.role === 'editor')"
           :to="{ name: 'dashboard' }"
           role="menuitem"
           class="px-4 py-2 text-left hover:bg-brand-50"

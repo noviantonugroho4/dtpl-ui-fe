@@ -147,3 +147,6 @@ vite.config.ts.timestamp-*
 
 # Test output
 coverage
+
+# Google OAuth client credentials (contain client_secret; never commit)
+client_secret_*.json

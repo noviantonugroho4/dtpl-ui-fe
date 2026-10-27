@@ -3,7 +3,7 @@ import { defineStore } from 'pinia'
 
 export type AuthDialogMode = 'login' | 'register'
 
-/** Modal login/registrasi situs publik (Figma 496:7096 dan 496:7120). */
+/** Modal masuk dengan Google dan registrasi situs publik (Figma 496:7113 dan 496:7120). */
 export const useAuthDialogStore = defineStore('authDialog', () => {
   const mode = ref<AuthDialogMode | null>(null)
   /** Pesan sukses satu kali, mis. setelah registrasi. */

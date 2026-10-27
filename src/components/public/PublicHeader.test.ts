@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import * as authApi from '@/api/auth'
+import * as googleApi from '@/api/googleAuth'
 import { useAuthDialogStore } from '@/stores/authDialog'
 import PublicHeader from './PublicHeader.vue'
 import { makeUser } from '@/test/helpers'
@@ -20,7 +21,12 @@ vi.mock('vue-router', async () => {
 })
 
 vi.mock('@/api/auth', () => ({ USE_MOCK_API: false, login: vi.fn(), logout: vi.fn(), me: vi.fn(), health: vi.fn() }))
+vi.mock('@/api/googleAuth', async () => {
+  const actual = await vi.importActual<typeof import('@/api/googleAuth')>('@/api/googleAuth')
+  return { ...actual, logoutTraveler: vi.fn().mockResolvedValue({}) }
+})
 const api = vi.mocked(authApi)
+const google = vi.mocked(googleApi)
 
 function seed(role: 'admin' | 'user' = 'user') {
   localStorage.setItem('dtpl.auth.token', 'jwt-1')
@@ -29,6 +35,7 @@ function seed(role: 'admin' | 'user' = 'user') {
 
 describe('PublicHeader', () => {
   beforeEach(() => {
+    localStorage.clear()
     setActivePinia(createPinia())
     api.logout.mockReset().mockResolvedValue({ data: { logout: true } })
   })
@@ -65,5 +72,22 @@ describe('PublicHeader', () => {
     const wrapper = mount(PublicHeader)
     await wrapper.find('[data-testid="public-header-user"]').trigger('click')
     expect(wrapper.find('[data-testid="public-header-portal"]').attributes('data-to')).toContain('dashboard')
+  })
+
+  it('shows a Google traveller by username without Portal Admin, and logs the cookie session out', async () => {
+    localStorage.setItem('dtpl.traveler.user', JSON.stringify({ username: 'wisatawan.1' }))
+    setActivePinia(createPinia())
+    const wrapper = mount(PublicHeader)
+
+    expect(wrapper.find('[data-testid="public-header-user"]').text()).toBe('wisatawan.1')
+    await wrapper.find('[data-testid="public-header-user"]').trigger('click')
+    expect(wrapper.find('[data-testid="public-header-portal"]').exists()).toBe(false)
+
+    await wrapper.find('[data-testid="public-header-logout"]').trigger('click')
+    await flushPromises()
+    expect(google.logoutTraveler).toHaveBeenCalled()
+    expect(api.logout).not.toHaveBeenCalled()
+    expect(localStorage.getItem('dtpl.traveler.user')).toBeNull()
+    expect(wrapper.find('[data-testid="public-header-login"]').exists()).toBe(true)
   })
 })

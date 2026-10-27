@@ -9,4 +9,6 @@ interface ImportMetaEnv {
   readonly VITE_MOCK_ROLE?: string
   /** Nomor WhatsApp Admin Widewi tujuan pemesanan tiket, digit internasional (mis. 6281234567890). */
   readonly VITE_WHATSAPP_ADMIN?: string
+  /** OAuth Client ID Google (publik) untuk Google Identity Services. */
+  readonly VITE_GOOGLE_CLIENT_ID?: string
 }
