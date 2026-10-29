@@ -77,14 +77,26 @@ describe('PublicHeader', () => {
 
   it('shows a Google traveller by username without Portal Admin, and logs the Bearer session out', async () => {
     localStorage.setItem('dtpl.traveler.token', 'traveler-jwt')
-    localStorage.setItem('dtpl.traveler.user', JSON.stringify({ id: 7, username: 'wisatawan.1' }))
-    google.getTravelerMe.mockResolvedValue({ data: { user: { id: 7, username: 'wisatawan.1', role: 'user', profileComplete: true } } })
+    localStorage.setItem('dtpl.traveler.user', JSON.stringify({ id: 7, nama: 'Wisata Wan' }))
+    // Bentuk respons /api/auth/me untuk akun Google: tanpa username, nama ada di profile.
+    google.getTravelerMe.mockResolvedValue({
+      data: {
+        user: {
+          id: 7,
+          role: 'user',
+          profileComplete: true,
+          profile: { namaDepan: 'Andi', namaBelakang: 'Pratama', tempatLahir: 'x', tanggalLahir: '1998-08-17', alamat: null, nomorTelepon: '+620000000000' },
+        },
+      },
+    })
     setActivePinia(createPinia())
     const wrapper = mount(PublicHeader)
     await flushPromises()
     expect(google.getTravelerMe).toHaveBeenCalledWith('traveler-jwt')
 
-    expect(wrapper.find('[data-testid="public-header-user"]').text()).toBe('wisatawan.1')
+    // Nama dari server menggantikan nama tersimpan.
+    expect(wrapper.find('[data-testid="public-header-user"]').text()).toBe('Andi Pratama')
+    expect(localStorage.getItem('dtpl.traveler.user')).toBe(JSON.stringify({ id: 7, nama: 'Andi Pratama' }))
     await wrapper.find('[data-testid="public-header-user"]').trigger('click')
     expect(wrapper.find('[data-testid="public-header-portal"]').exists()).toBe(false)
 
@@ -99,7 +111,7 @@ describe('PublicHeader', () => {
 
   it('drops a stored traveller session that the server rejects', async () => {
     localStorage.setItem('dtpl.traveler.token', 'expired-jwt')
-    localStorage.setItem('dtpl.traveler.user', JSON.stringify({ id: 7, username: 'wisatawan.1' }))
+    localStorage.setItem('dtpl.traveler.user', JSON.stringify({ id: 7, nama: 'Wisata Wan' }))
     google.getTravelerMe.mockRejectedValue(new ApiError(401, 'UNAUTHENTICATED', 'x'))
     setActivePinia(createPinia())
     const wrapper = mount(PublicHeader)

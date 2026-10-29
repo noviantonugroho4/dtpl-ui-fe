@@ -80,7 +80,7 @@ describe('AuthDialog', () => {
     await openAndClickGoogle(wrapper)
 
     expect(google.authenticateWithGoogle).toHaveBeenCalledWith('token-for-auth-login-google')
-    expect(useTravelerStore().user).toEqual({ id: 7, username: 'lidya.s' })
+    expect(useTravelerStore().user).toEqual({ id: 7, nama: 'Lidya Silitonga' })
     expect(localStorage.getItem('dtpl.traveler.token')).toBe('jwt-ok')
     expect(wrapper.find('[data-testid="auth-dialog"]').exists()).toBe(false)
   })
@@ -116,7 +116,7 @@ describe('AuthDialog', () => {
       tanggalLahir: '1999-08-17',
       nomorTelepon: '+628123456789',
     })
-    expect(useTravelerStore().user).toEqual({ id: 7, username: 'lidya.s' })
+    expect(useTravelerStore().user).toEqual({ id: 7, nama: 'Lidya Silitonga' })
     expect(localStorage.getItem('dtpl.traveler.token')).toBe('jwt-new')
     expect(wrapper.find('[data-testid="auth-dialog"]').exists()).toBe(false)
   })

@@ -4,15 +4,16 @@ import { ApiError } from '@/api/client'
 import { getTravelerMe, logoutTraveler, type TravelerUser } from '@/api/googleAuth'
 
 /**
- * Hanya token dan username yang disimpan di browser; profil pribadi (email, telepon,
- * tanggal lahir) tidak pernah ditulis ke localStorage.
+ * Hanya token dan nama tampilan yang disimpan di browser; profil pribadi lain (email,
+ * telepon, tanggal lahir, alamat) tidak pernah ditulis ke localStorage.
  */
 const TOKEN_KEY = 'dtpl.traveler.token'
 const USER_KEY = 'dtpl.traveler.user'
 
 export interface TravelerSessionUser {
   id?: number
-  username: string
+  /** Nama di header: "Nama Depan Nama Belakang". */
+  nama: string
 }
 
 function read(key: string): string | null {
@@ -35,13 +36,19 @@ function write(key: string, value: string | null) {
 function readUser(): TravelerSessionUser | null {
   try {
     const parsed = JSON.parse(read(USER_KEY) ?? 'null') as Partial<TravelerSessionUser> | null
-    return parsed && typeof parsed.username === 'string' ? { id: parsed.id, username: parsed.username } : null
+    return parsed && typeof parsed.nama === 'string' && parsed.nama ? { id: parsed.id, nama: parsed.nama } : null
   } catch {
     return null
   }
 }
 
-const toSessionUser = (user: TravelerUser): TravelerSessionUser => ({ id: user.id, username: user.username })
+/** Nama depan + belakang dari profil; username hanya cadangan bila profil kosong. */
+export function travelerDisplayName(user: TravelerUser): string {
+  const nama = [user.profile?.namaDepan, user.profile?.namaBelakang].map((part) => part?.trim()).filter(Boolean).join(' ')
+  return nama || user.username || 'Pengguna'
+}
+
+const toSessionUser = (user: TravelerUser): TravelerSessionUser => ({ id: user.id, nama: travelerDisplayName(user) })
 
 /** Sesi wisatawan situs publik (Bearer JWT dari login Google), terpisah dari sesi CMS. */
 export const useTravelerStore = defineStore('traveler', () => {

@@ -27,7 +27,7 @@ const traveler = useTravelerStore()
 const dialog = useAuthDialogStore()
 
 /** Nama di header: sesi CMS atau sesi wisatawan Google (keduanya Bearer token). */
-const displayName = computed(() => (auth.isAuthenticated && auth.user ? auth.user.username : traveler.user?.username ?? null))
+const displayName = computed(() => (auth.isAuthenticated && auth.user ? auth.user.username : traveler.user?.nama ?? null))
 const router = useRouter()
 const loggingOut = ref(false)
 /** Menu pengguna (Figma 496:6768: header landing dengan nama pengguna menggantikan "Masuk"). */
@@ -107,7 +107,7 @@ onBeforeUnmount(() => {
         data-testid="public-header-user"
         @click="menuOpen = !menuOpen"
       >
-        {{ displayName }}
+        <span class="max-w-[160px] truncate sm:max-w-[220px]" data-testid="public-header-user-name">{{ displayName }}</span>
         <MaskIcon :src="iconChevronDown" :size="14" />
       </button>
       <div

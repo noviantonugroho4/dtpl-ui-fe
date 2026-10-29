@@ -27,7 +27,8 @@ export interface TravelerProfile {
 
 export interface TravelerUser {
   id: number
-  username: string
+  /** Tidak selalu dikirim untuk akun Google (GET /api/auth/me hanya memuat id, email, profile). */
+  username?: string
   email?: string
   role: string
   profileComplete: boolean
