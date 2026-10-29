@@ -1,78 +1,75 @@
 import { request } from './client'
 
 /**
- * Masuk/daftar wisatawan lewat Google (Figma 496:7113 → 496:7120).
- * Satu endpoint untuk registrasi dan login: POST /api/auth/google
- * (lihat "Google Identity Services - Integration Guide.md" §2–§4).
+ * Masuk/daftar wisatawan lewat Google (Figma 496:7113 → 496:7120), kontrak PBI-011 & PBI-012:
  *
- * - 200 → { data: { outcome: 'registered' | 'logged_in', user } } + cookie sesi
- * - 422 PROFILE_REQUIRED → akun Google baru; tampilkan form, tidak ada yang tersimpan
- * - 400 VALIDATION_FAILED → details per field profil
- * - 409 ACCOUNT_EXISTS_PASSWORD, 403, 429, 503, 401 → gagal
+ * 1. POST /api/auth/google { idToken } → 200 { outcome, token (Bearer JWT), user }
+ *    - akun baru dibuat dari klaim Google; namaDepan/namaBelakang sudah terisi di user.profile
+ *    - user.profileComplete=false → tampilkan form registrasi (berlaku juga untuk outcome logged_in)
+ * 2. PUT /api/auth/profile (Bearer) → profileComplete=true
+ *
+ * Error POST google: 400 VALIDATION_FAILED, 401 GOOGLE_TOKEN_INVALID / GOOGLE_EMAIL_UNVERIFIED,
+ * 403 GOOGLE_PROVIDER_CONFLICT, 409 ACCOUNT_EXISTS_PASSWORD, 429 RATE_LIMITED, 503.
  */
 
 /** Client ID OAuth (publik, bukan rahasia). Client secret TIDAK dipakai di alur ini. */
 export const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID ?? ''
 
-/**
- * ASSUMPTION: nama field mengikuti PRD §5 yang belum tersedia di repo;
- * disamakan dengan gaya payload wisata (camelCase bahasa Indonesia).
- */
-export interface GoogleProfileInput {
-  namaDepan: string
-  namaBelakang: string
-  tempatLahir: string
+export interface TravelerProfile {
+  namaDepan: string | null
+  namaBelakang: string | null
+  tempatLahir: string | null
   /** ISO date, yyyy-mm-dd. */
-  tanggalLahir: string
-  alamat: string
-  /** Format +62xxxxxxxxxx. */
-  nomorTelepon: string
+  tanggalLahir: string | null
+  alamat: string | null
+  nomorTelepon: string | null
 }
 
-/** ASSUMPTION: bentuk `user` belum terdokumentasi; FE hanya memakai username untuk header. */
 export interface TravelerUser {
+  id: number
   username: string
-  role?: string
+  email?: string
+  role: string
+  profileComplete: boolean
+  profile?: TravelerProfile
 }
 
 export interface GoogleAuthResponse {
   data: {
     outcome: 'registered' | 'logged_in'
+    token: string
     user: TravelerUser
   }
 }
 
-/** Panggilan 1 (tanpa profil) dan panggilan 2 (dengan profil, token Google baru). */
-export function authenticateWithGoogle(idToken: string, profile?: GoogleProfileInput): Promise<GoogleAuthResponse> {
-  return request<GoogleAuthResponse>('/api/auth/google', {
-    method: 'POST',
-    body: profile ? { idToken, profile } : { idToken },
-    credentials: 'include',
-  })
+export interface TravelerUserResponse {
+  data: { user: TravelerUser }
 }
 
-/** ASSUMPTION: sesi cookie wisatawan diakhiri lewat endpoint logout yang sama. */
-export function logoutTraveler(): Promise<unknown> {
-  return request('/api/auth/logout', { method: 'POST', credentials: 'include' })
-}
-
-export interface GooglePrefill {
+/** Body PUT /api/auth/profile; alamat opsional. */
+export interface UpdateProfileInput {
   namaDepan: string
   namaBelakang: string
+  tempatLahir: string
+  /** ISO date, yyyy-mm-dd. */
+  tanggalLahir: string
+  alamat?: string
+  /** 08… atau +62…; dinormalisasi server ke +62…. */
+  nomorTelepon: string
 }
 
-/** Klaim ID token untuk isian awal form SAJA; data yang divalidasi server selalu menang. */
-export function decodeGooglePrefill(idToken: string): GooglePrefill {
-  try {
-    const part = idToken.split('.')[1] ?? ''
-    const base64 = part.replace(/-/g, '+').replace(/_/g, '/').padEnd(Math.ceil(part.length / 4) * 4, '=')
-    const bytes = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0))
-    const claims = JSON.parse(new TextDecoder().decode(bytes)) as Record<string, unknown>
-    return {
-      namaDepan: typeof claims.given_name === 'string' ? claims.given_name : '',
-      namaBelakang: typeof claims.family_name === 'string' ? claims.family_name : '',
-    }
-  } catch {
-    return { namaDepan: '', namaBelakang: '' }
-  }
+export function authenticateWithGoogle(idToken: string): Promise<GoogleAuthResponse> {
+  return request<GoogleAuthResponse>('/api/auth/google', { method: 'POST', body: { idToken } })
+}
+
+export function updateTravelerProfile(token: string, profile: UpdateProfileInput): Promise<TravelerUserResponse> {
+  return request<TravelerUserResponse>('/api/auth/profile', { method: 'PUT', body: profile, token })
+}
+
+export function getTravelerMe(token: string): Promise<TravelerUserResponse> {
+  return request<TravelerUserResponse>('/api/auth/me', { token })
+}
+
+export function logoutTraveler(token: string): Promise<unknown> {
+  return request('/api/auth/logout', { method: 'POST', token })
 }

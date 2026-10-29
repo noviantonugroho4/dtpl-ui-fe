@@ -71,10 +71,11 @@ function initialTypes(): WisataType[] {
   return value && ALL_TYPES.includes(value) ? [value] : [...ALL_TYPES]
 }
 
-function matchName(list: LocationShortItem[], input: string): string {
+function matchName(list: LocationShortItem[], input: string): LocationShortItem | null {
   const term = input.trim().toLowerCase()
-  return term ? (list.find((item) => item.name.toLowerCase() === term)?.name ?? '') : ''
+  return term ? (list.find((item) => item.name.toLowerCase() === term) ?? null) : null
 }
+/** Wilayah yang cocok dengan teks; server menyaring berdasarkan kodenya (`kecamatan_id`/`kelurahan_id`). */
 const kecamatan = computed(() => matchName(districts.value, kecamatanInput.value))
 const kelurahan = computed(() => matchName(villages.value, kelurahanInput.value))
 
@@ -102,8 +103,8 @@ function clearFilters() {
 const serverJenis = computed(() => (activeTypes.value.length === 1 ? activeTypes.value[0] : undefined))
 const serverParams = computed<ListWisataParams>(() => ({
   jenis: serverJenis.value,
-  kecamatan: kecamatan.value || undefined,
-  kelurahan: kelurahan.value || undefined,
+  kecamatan_id: kecamatan.value?.id,
+  kelurahan_id: kelurahan.value?.id,
 }))
 const serverKey = computed(() => JSON.stringify(serverParams.value))
 
@@ -128,9 +129,8 @@ async function loadDistricts() {
   }
 }
 
-async function loadVillages(districtName: string) {
+async function loadVillages(district: LocationShortItem | null) {
   villages.value = []
-  const district = districts.value.find((d) => d.name === districtName)
   if (!district) return
   try {
     villages.value = (await listVillages(district.id)).data

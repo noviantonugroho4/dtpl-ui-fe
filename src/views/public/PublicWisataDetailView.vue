@@ -4,13 +4,16 @@ import { RouterLink, useRoute } from 'vue-router'
 import { ApiError } from '@/api/client'
 import { errorMessageFor } from '@/api/errorMessages'
 import { getWisata, wisataImageUrl } from '@/api/wisata'
-import { resolveVillageByName, type ResolvedVillage } from '@/api/location'
+import { getVillageDetail } from '@/api/location'
 import type { Wisata, WisataImage } from '@/api/types'
 import { formatRupiah } from '@/utils/format'
 import MaskIcon from '@/components/MaskIcon.vue'
 import WisataTypeTag from '@/components/WisataTypeTag.vue'
-import { useAuthStore } from '@/stores/auth'
-import { buildTicketMessage, WHATSAPP_ADMIN_NUMBER, whatsappLink } from '@/utils/whatsapp'
+import AppAlertDialog from '@/components/AppAlertDialog.vue'
+import OrderTicketDialog, { type OrderDraft } from '@/components/public/OrderTicketDialog.vue'
+import { getTravelerMe, type TravelerProfile } from '@/api/googleAuth'
+import { useAuthDialogStore } from '@/stores/authDialog'
+import { useTravelerStore } from '@/stores/traveler'
 import iconHome from '@/assets/icons/home.svg'
 import iconChevronRight from '@/assets/icons/chevron-right.svg'
 import iconCornerUpRight from '@/assets/icons/corner-up-right.svg'
@@ -27,7 +30,8 @@ import placeholderUrl from '@/assets/landing/placeholder.png'
 const GALLERY_SLOTS = 6
 
 const route = useRoute()
-const auth = useAuthStore()
+const traveler = useTravelerStore()
+const authDialog = useAuthDialogStore()
 const item = ref<Wisata | null>(null)
 const loading = ref(true)
 const notFound = ref(false)
@@ -35,8 +39,8 @@ const errorMessage = ref<string | null>(null)
 const brokenImages = ref(new Set<string>())
 /** Indeks gambar yang sedang dibuka di lightbox; null = tertutup. */
 const lightboxIndex = ref<number | null>(null)
-/** Kabupaten & kode pos dari API wilayah (dicari dari nama); null = belum/tidak ditemukan. */
-const region = ref<ResolvedVillage | null>(null)
+/** Kode pos dari API wilayah (village-detail); kosong = belum/tidak tersedia. */
+const kodePos = ref('')
 /** Umpan balik tombol "Salin" kontak. */
 const copyState = ref<'idle' | 'copied' | 'failed'>('idle')
 let copyTimer: ReturnType<typeof setTimeout> | undefined
@@ -49,7 +53,7 @@ async function load() {
   errorMessage.value = null
   try {
     item.value = (await getWisata(id.value)).data
-    void loadRegion(item.value)
+    void loadKodePos(item.value)
   } catch (err) {
     item.value = null
     if (err instanceof ApiError && err.status === 404) notFound.value = true
@@ -59,19 +63,25 @@ async function load() {
   }
 }
 
-async function loadRegion(wisata: Wisata) {
-  region.value = null
-  const resolved = await resolveVillageByName(wisata)
-  // Abaikan hasil untuk destinasi yang sudah tidak ditampilkan.
-  if (item.value?.id === wisata.id) region.value = resolved
+/** API wisata belum mengirim kode pos; ambil dari village-detail. Gagal = alamat tanpa kode pos. */
+async function loadKodePos(wisata: Wisata) {
+  kodePos.value = ''
+  if (!wisata.kelurahanId) return
+  try {
+    const postal = (await getVillageDetail(wisata.kelurahanId)).data.postal_code ?? ''
+    // Abaikan hasil untuk destinasi yang sudah tidak ditampilkan.
+    if (item.value?.id === wisata.id) kodePos.value = postal
+  } catch {
+    // village-detail kadang 502; alamat tetap tampil tanpa kode pos.
+  }
 }
 
-/** "Jl..., Kelurahan X, Kecamatan Y, Kabupaten Z, Provinsi 12345"; kabupaten/kode pos muncul bila ditemukan. */
+/** "Jl..., Kelurahan X, Kecamatan Y, Kabupaten Z, Provinsi 12345". */
 const alamatLengkap = computed(() => {
   if (!item.value) return ''
   const parts = [item.value.alamat, `Kelurahan ${item.value.kelurahan}`, `Kecamatan ${item.value.kecamatan}`]
-  if (region.value?.kabupaten) parts.push(region.value.kabupaten)
-  parts.push([item.value.provinsi, region.value?.kodePos].filter(Boolean).join(' '))
+  if (item.value.kabupatenKota) parts.push(item.value.kabupatenKota)
+  parts.push([item.value.provinsi, kodePos.value].filter(Boolean).join(' '))
   return parts.join(', ')
 })
 
@@ -89,18 +99,61 @@ const routeHref = computed(() => {
   return `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(destination)}`
 })
 
-/**
- * Pesan Tiket: langsung ke WhatsApp Admin Widewi dengan template pesanan.
- * Nomor admin dari VITE_WHATSAPP_ADMIN; bila kosong, pakai kontak WhatsApp destinasi.
- */
-const whatsappHref = computed(() => {
-  if (!item.value) return '#'
-  const phone = WHATSAPP_ADMIN_NUMBER || item.value.kontakWa || item.value.kontakTelp
-  return whatsappLink(
-    phone,
-    buildTicketMessage({ namaWisata: item.value.nama, namaPemesan: auth.user?.username, services: services.value.map((s) => s.serviceName) }),
-  )
-})
+// ---- Pesan Sekarang → form pemesanan (Figma 666:13008), wajib masuk dengan Google ----
+const orderOpen = ref(false)
+/** Klik "Pesan Sekarang" saat belum masuk: buka form setelah login berhasil. */
+const orderAfterLogin = ref(false)
+const orderPrefill = ref<Pick<TravelerProfile, 'namaDepan' | 'namaBelakang'> | undefined>(undefined)
+/** ASSUMPTION: belum ada API pemesanan di BE; draf divalidasi lalu pengguna diberi tahu. */
+const orderNotice = ref<string | null>(null)
+
+async function loadOrderPrefill() {
+  orderPrefill.value = undefined
+  if (!traveler.token) return
+  try {
+    const profile = (await getTravelerMe(traveler.token)).data.user.profile
+    orderPrefill.value = { namaDepan: profile?.namaDepan ?? null, namaBelakang: profile?.namaBelakang ?? null }
+  } catch {
+    // Isian awal opsional; nama tetap bisa diketik.
+  }
+}
+
+function openOrder() {
+  orderOpen.value = true
+  void loadOrderPrefill()
+}
+
+function onOrderClick() {
+  if (traveler.user) {
+    openOrder()
+    return
+  }
+  orderAfterLogin.value = true
+  authDialog.open('login')
+}
+
+watch(
+  () => traveler.user,
+  (user) => {
+    if (user && orderAfterLogin.value) {
+      orderAfterLogin.value = false
+      openOrder()
+    }
+  },
+)
+// Dialog masuk ditutup tanpa login: batalkan niat memesan.
+watch(
+  () => authDialog.mode,
+  (mode) => {
+    if (mode === null && !traveler.user) orderAfterLogin.value = false
+  },
+)
+
+function onOrderSubmit(_draft: OrderDraft) {
+  // TODO(BE): kirim draf ke endpoint pemesanan setelah kontraknya tersedia.
+  orderOpen.value = false
+  orderNotice.value = 'Pemesanan online belum tersedia. Silakan coba lagi nanti.'
+}
 
 async function copyKontak() {
   if (!item.value) return
@@ -288,17 +341,16 @@ watch(id, () => void load(), { immediate: true })
             </div>
           </dl>
 
-          <!-- Pesan Sekarang: tetap langsung ke WhatsApp Admin -->
-          <a
-            :href="whatsappHref"
-            target="_blank"
-            rel="noopener"
+          <!-- Pesan Sekarang: wajib masuk, lalu form pemesanan -->
+          <button
+            type="button"
             class="inline-flex w-fit items-center gap-2 rounded-lg bg-brand-500 px-5 py-2.5 text-sm leading-none font-medium text-white transition hover:bg-brand-600 focus-visible:ring-2 focus-visible:ring-brand-500/40 focus-visible:outline-none"
             data-testid="public-detail-order"
+            @click="onOrderClick"
           >
             <MaskIcon :src="iconShoppingCart" :size="18" />
             Pesan Sekarang
-          </a>
+          </button>
 
           <!-- Galeri (Figma 496:8462) -->
           <div class="grid w-full grid-cols-2 gap-3 border border-ink-200 bg-white p-1 sm:grid-cols-3" data-testid="public-detail-gallery">
@@ -326,6 +378,17 @@ watch(id, () => void load(), { immediate: true })
         </div>
       </template>
     </section>
+
+    <OrderTicketDialog
+      v-if="item"
+      :open="orderOpen"
+      :harga-tiket="item.hargaTiket"
+      :services="services"
+      :prefill="orderPrefill"
+      @close="orderOpen = false"
+      @submit="onOrderSubmit"
+    />
+    <AppAlertDialog :open="orderNotice !== null" :title="orderNotice ?? ''" testid="public-detail-order-notice" @close="orderNotice = null" />
 
     <!-- Lightbox -->
     <div

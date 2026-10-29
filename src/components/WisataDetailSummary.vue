@@ -77,7 +77,7 @@ function whatsappHref(value: string): string {
       <dt class="shrink-0 text-xs leading-[1.2] tracking-[-0.36px] text-black sm:w-[185px]">Alamat</dt>
       <dd class="flex min-w-0 flex-1 flex-col gap-1 text-xs text-ink-900">
         <span class="whitespace-pre-line" :data-testid="`${testid}-alamat`">{{ item.alamat }}</span>
-        <span class="text-ink-500" :data-testid="`${testid}-wilayah`">Kel. {{ item.kelurahan }}, Kec. {{ item.kecamatan }}, {{ item.provinsi }}</span>
+        <span class="text-ink-500" :data-testid="`${testid}-wilayah`">Kel. {{ item.kelurahan }}, Kec. {{ item.kecamatan }},<template v-if="item.kabupatenKota"> {{ item.kabupatenKota }},</template> {{ item.provinsi }}</span>
       </dd>
     </div>
 

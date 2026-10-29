@@ -107,9 +107,9 @@ describe('DestinasiWisataView', () => {
     expect(options).toEqual(['-- Pilih Kecamatan --', 'Pesisir Tengah', 'Pesisir Selatan'])
 
     api.listWisata.mockClear()
-    await wrapper.find('#filter-kecamatan').setValue('Pesisir Selatan')
+    await wrapper.find('#filter-kecamatan').setValue('18.13.02')
     await flushPromises()
-    expect(api.listWisata).toHaveBeenCalledWith({ page: 1, limit: 10, kecamatan: 'Pesisir Selatan' }, expect.any(AbortSignal))
+    expect(api.listWisata).toHaveBeenCalledWith({ page: 1, limit: 10, kecamatan_id: '18.13.02' }, expect.any(AbortSignal))
   })
 
   it('filters rows by name when searching', async () => {
@@ -138,7 +138,7 @@ describe('DestinasiWisataView', () => {
 
     await wrapper.find('#filter-search').setValue('merbabu')
     await flushPromises()
-    expect(api.listWisata).toHaveBeenCalledWith({ page: 2, limit: 50, kecamatan: undefined }, expect.any(AbortSignal))
+    expect(api.listWisata).toHaveBeenCalledWith({ page: 2, limit: 50, kecamatan_id: undefined }, expect.any(AbortSignal))
     expect(wrapper.findAll('tbody tr')).toHaveLength(1)
     expect(wrapper.find('tbody').text()).toContain('Gunung Merbabu')
     expect(wrapper.findAll('[data-testid^="pagination-page-"]')).toHaveLength(1)
@@ -152,7 +152,7 @@ describe('DestinasiWisataView', () => {
     api.listWisata.mockClear()
     await wrapper.find('[data-testid="pagination-page-2"]').trigger('click')
     await flushPromises()
-    expect(api.listWisata).toHaveBeenCalledWith({ page: 2, limit: 10, kecamatan: undefined }, expect.any(AbortSignal))
+    expect(api.listWisata).toHaveBeenCalledWith({ page: 2, limit: 10, kecamatan_id: undefined }, expect.any(AbortSignal))
   })
 
   it('shows a translated error with a retry button when the request fails', async () => {

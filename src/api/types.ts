@@ -83,7 +83,14 @@ export interface Wisata {
   jenis: WisataType
   kontakTelp: string
   kontakWa?: string
+  /** Kode wilayah (format Wilayah Indonesia, mis. "32.73.01.1001"). */
+  provinsiId?: string
+  kabupatenKotaId?: string
+  kecamatanId?: string
+  kelurahanId?: string
+  /** Nama wilayah, diperkaya server dari kode di atas. */
   provinsi: string
+  kabupatenKota?: string
   kecamatan: string
   kelurahan: string
   alamat: string
@@ -134,9 +141,11 @@ export interface CreateWisataRequest {
   jenis: WisataType
   kontakTelp: string
   kontakWa?: string
-  provinsi: string
-  kecamatan: string
-  kelurahan: string
+  /** Wajib; provinsi/kabupaten/kecamatan diturunkan server dari awalan kode ini. Field nama lama diabaikan. */
+  kelurahanId: string
+  provinsiId?: string
+  kabupatenKotaId?: string
+  kecamatanId?: string
   alamat: string
   mapsLink: string
   deskripsi?: string

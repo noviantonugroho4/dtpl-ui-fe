@@ -37,6 +37,7 @@ const loading = ref(true)
 const errorMessage = ref<string | null>(null)
 
 const page = ref(1)
+/** Kode kecamatan (mis. "18.13.01"); server menyaring dengan `kecamatan_id`. */
 const kecamatan = ref('')
 const search = ref('')
 /** Kecamatan di wilayah cakupan (API wilayah). */
@@ -81,7 +82,7 @@ async function load() {
       let totalPages = 1
       do {
         const response = await listWisata(
-          { page: pageNo, limit: FETCH_ALL_LIMIT, kecamatan: kecamatan.value || undefined },
+          { page: pageNo, limit: FETCH_ALL_LIMIT, kecamatan_id: kecamatan.value || undefined },
           current.signal,
         )
         collected.push(...response.data)
@@ -92,7 +93,7 @@ async function load() {
       allRowsCacheKey = cacheKey
     } else {
       const response = await listWisata(
-        { page: page.value, limit: PAGE_SIZE, kecamatan: kecamatan.value || undefined },
+        { page: page.value, limit: PAGE_SIZE, kecamatan_id: kecamatan.value || undefined },
         current.signal,
       )
       rows.value = response.data
@@ -171,7 +172,7 @@ onBeforeUnmount(() => {
               @change="onKecamatanChange"
             >
               <option value="">-- Pilih Kecamatan --</option>
-              <option v-for="district in districts" :key="district.id" :value="district.name">{{ district.name }}</option>
+              <option v-for="district in districts" :key="district.id" :value="district.id">{{ district.name }}</option>
             </select>
             <span class="pointer-events-none absolute inset-y-0 right-3 flex items-center text-ink-900">
               <MaskIcon :src="iconChevronDown" :size="16" />

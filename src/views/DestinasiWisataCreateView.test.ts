@@ -193,9 +193,10 @@ describe('DestinasiWisataCreateView', () => {
         jenis: 'wisata_alam',
         kontakTelp: '+62812345678',
         kontakWa: '+628129998888',
-        provinsi: 'DKI Jakarta',
-        kecamatan: 'Kepulauan Seribu Utara',
-        kelurahan: 'Pulau Panggang',
+        provinsiId: '31',
+        kabupatenKotaId: '31.01',
+        kecamatanId: '31.01.01',
+        kelurahanId: '31.01.01.1001',
         alamat: 'Jl. Pantai No. 1',
         mapsLink: 'https://maps.app.goo.gl/abc123',
         hargaTiket: 25000,
@@ -211,7 +212,7 @@ describe('DestinasiWisataCreateView', () => {
 
   it('maps backend field details onto the form', async () => {
     vi.mocked(wisata.createWisata).mockRejectedValue(
-      new ApiError(400, 'VALIDATION_ERROR', 'Invalid input parameters', { nama: 'nama sudah digunakan' }),
+      new ApiError(400, 'VALIDATION_ERROR', 'Invalid input parameters', { nama: 'nama sudah digunakan', kelurahanId: 'kelurahan tidak dikenal' }),
     )
     const wrapper = mount(DestinasiWisataCreateView)
     await flushPromises()
@@ -220,6 +221,7 @@ describe('DestinasiWisataCreateView', () => {
     await flushPromises()
 
     expect(wrapper.text()).toContain('nama sudah digunakan')
+    expect(wrapper.text()).toContain('kelurahan tidak dikenal')
     expect(wrapper.text()).toContain('Periksa kembali formulir lalu coba lagi.')
     expect(routerMocks.push).not.toHaveBeenCalled()
   })

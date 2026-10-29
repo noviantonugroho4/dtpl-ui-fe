@@ -5,6 +5,11 @@ import { ApiError } from '@/api/client'
 import * as wisataApi from '@/api/wisata'
 import * as locationApi from '@/api/location'
 import type { Wisata } from '@/api/types'
+import * as googleApi from '@/api/googleAuth'
+import type { TravelerUser } from '@/api/googleAuth'
+import { useAuthDialogStore } from '@/stores/authDialog'
+import { useTravelerStore } from '@/stores/traveler'
+import { formatRupiah } from '@/utils/format'
 import PublicWisataDetailView from './PublicWisataDetailView.vue'
 
 vi.mock('vue-router', async () => {
@@ -21,10 +26,18 @@ vi.mock('@/api/wisata', async () => {
   return { ...actual, getWisata: vi.fn() }
 })
 
-vi.mock('@/api/location', () => ({ resolveVillageByName: vi.fn() }))
+vi.mock('@/api/location', () => ({ getVillageDetail: vi.fn() }))
 
 const api = vi.mocked(wisataApi)
 const location = vi.mocked(locationApi)
+
+vi.mock('@/api/googleAuth', async () => {
+  const actual = await vi.importActual<typeof import('@/api/googleAuth')>('@/api/googleAuth')
+  return { ...actual, getTravelerMe: vi.fn(), logoutTraveler: vi.fn().mockResolvedValue({}) }
+})
+const google = vi.mocked(googleApi)
+const emptyProfile = { namaDepan: null, namaBelakang: null, tempatLahir: null, tanggalLahir: null, alamat: null, nomorTelepon: null }
+const traveler: TravelerUser = { id: 7, username: 'lidya.s', role: 'user', profileComplete: true, profile: emptyProfile }
 
 const wisata: Wisata = {
   id: 'id-1', nama: 'Snorkling Kep. Seribu', jenis: 'wisata_bahari', kontakTelp: '+628111111111', kontakWa: '+628222222222',
@@ -41,12 +54,14 @@ const wisata: Wisata = {
 
 describe('PublicWisataDetailView', () => {
   beforeEach(() => {
+    localStorage.clear()
     setActivePinia(createPinia())
+    google.getTravelerMe.mockReset()
     api.getWisata.mockReset().mockResolvedValue({ data: wisata })
-    location.resolveVillageByName.mockReset().mockResolvedValue(null)
+    location.getVillageDetail.mockReset().mockRejectedValue(new ApiError(502, 'UNKNOWN_ERROR', 'Bad Gateway'))
   })
 
-  it('renders the design rows, map links, WhatsApp order link and a six-slot gallery', async () => {
+  it('renders the design rows, map links and a six-slot gallery', async () => {
     const wrapper = mount(PublicWisataDetailView)
     await flushPromises()
 
@@ -62,32 +77,81 @@ describe('PublicWisataDetailView', () => {
     expect(wrapper.find('[data-testid="public-detail-map-link"]').text()).toBe(wisata.mapsLink)
     expect(wrapper.find('[data-testid="public-detail-map-route"]').attributes('href')).toContain('google.com/maps/dir/?api=1&destination=Snorkling%20Kep.%20Seribu')
 
-    const order = wrapper.find('[data-testid="public-detail-order"]')
-    expect(order.attributes('href')!.startsWith('https://wa.me/628222222222?text=')).toBe(true)
-    const text = decodeURIComponent(order.attributes('href')!.split('?text=')[1]!)
-    expect(text).toContain('Halo, Bapak/Ibu Admin Widewi.')
-    expect(text).toContain('pemesanan tiket Snorkling Kep. Seribu melalui website Widewi')
-    expect(text).toContain('Nama Pemesan: [Nama Depan] [Nama Belakang]')
-    expect(text).toContain('Tanggal Kedatangan: [Tanggal]')
-    expect(text).toContain('Jumlah Tiket: [Jumlah Orang]')
-    expect(text).toContain('Tambahan Service: Sewa Payung')
-
     const gallery = wrapper.find('[data-testid="public-detail-gallery"]')
     expect(gallery.findAll('button')).toHaveLength(2)
     expect(gallery.findAll('[data-testid="public-detail-gallery-empty"]')).toHaveLength(4)
     expect(gallery.findAll('button img').map((img) => img.attributes('src'))).toEqual(['/api/v1/wisata/images/k1', '/api/v1/wisata/images/k2'])
   })
 
-  it('uses the signed-in username as the orderer and the phone number when kontakWa is missing', async () => {
-    localStorage.setItem('dtpl.auth.token', 'jwt-1')
-    localStorage.setItem('dtpl.auth.user', JSON.stringify({ id: 1, username: 'lidya', role: 'user', createdAt: '', updatedAt: '' }))
-    setActivePinia(createPinia())
-    api.getWisata.mockResolvedValue({ data: { ...wisata, kontakWa: undefined } })
+  it('asks a signed-out visitor to sign in first, then opens the order form', async () => {
     const wrapper = mount(PublicWisataDetailView)
     await flushPromises()
-    const href = wrapper.find('[data-testid="public-detail-order"]').attributes('href')!
-    expect(href.startsWith('https://wa.me/628111111111?text=')).toBe(true)
-    expect(decodeURIComponent(href)).toContain('Nama Pemesan: lidya')
+
+    await wrapper.find('[data-testid="public-detail-order"]').trigger('click')
+    expect(useAuthDialogStore().mode).toBe('login')
+    expect(wrapper.find('[data-testid="order-dialog"]').exists()).toBe(false)
+
+    google.getTravelerMe.mockResolvedValue({ data: { user: { ...traveler, profile: { ...emptyProfile, namaDepan: 'Lidya', namaBelakang: 'Silitonga' } } } })
+    useTravelerStore().signIn('jwt-t', traveler)
+    useAuthDialogStore().close()
+    await flushPromises()
+    expect(wrapper.find('[data-testid="order-dialog"]').exists()).toBe(true)
+    expect((wrapper.find('[data-testid="order-nama-depan"]').element as HTMLInputElement).value).toBe('Lidya')
+    expect(google.getTravelerMe).toHaveBeenCalledWith('jwt-t')
+  })
+
+  it('drops the order intent when the sign-in dialog is closed without signing in', async () => {
+    const wrapper = mount(PublicWisataDetailView)
+    await flushPromises()
+    await wrapper.find('[data-testid="public-detail-order"]').trigger('click')
+    useAuthDialogStore().close()
+    await flushPromises()
+    useTravelerStore().signIn('jwt-t', traveler)
+    await flushPromises()
+    expect(wrapper.find('[data-testid="order-dialog"]').exists()).toBe(false)
+  })
+
+  it('totals tickets and services, validates, and reports that online ordering is not available yet', async () => {
+    api.getWisata.mockResolvedValue({ data: { ...wisata, hargaTiket: 100000 } })
+    useTravelerStore().signIn('jwt-t', traveler)
+    google.getTravelerMe.mockRejectedValue(new ApiError(0, 'NETWORK_ERROR', 'x'))
+    const wrapper = mount(PublicWisataDetailView)
+    await flushPromises()
+    await wrapper.find('[data-testid="public-detail-order"]').trigger('click')
+    await flushPromises()
+
+    expect(wrapper.find('[data-testid="order-total"]').text()).toBe(formatRupiah(100000))
+    await wrapper.find('[data-testid="order-pengunjung-plus"]').trigger('click')
+    await wrapper.find('[data-testid="order-service-s-1-check"]').setValue(true)
+    await wrapper.find('[data-testid="order-service-s-1-plus"]').trigger('click')
+    expect(wrapper.find('[data-testid="order-service-s-1-qty"]').text()).toBe('2')
+    expect(wrapper.find('[data-testid="order-total"]').text()).toBe(formatRupiah(2 * 100000 + 2 * 15000))
+    await wrapper.find('[data-testid="order-pengunjung-minus"]').trigger('click')
+    await wrapper.find('[data-testid="order-pengunjung-minus"]').trigger('click')
+    expect(wrapper.find('[data-testid="order-pengunjung"]').text()).toBe('1')
+
+    await wrapper.find('[data-testid="order-form"]').trigger('submit')
+    expect(wrapper.find('[data-testid="order-nama-depan-error"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="order-tanggal-error"]').exists()).toBe(true)
+
+    await wrapper.find('[data-testid="order-nama-depan"]').setValue('Lidya')
+    await wrapper.find('[data-testid="order-nama-belakang"]').setValue('Silitonga')
+    await wrapper.find('[data-testid="order-tanggal-native"]').setValue('2999-10-17')
+    expect(wrapper.find('[data-testid="order-tanggal"]').text()).toContain('17 Oktober 2999')
+    await wrapper.find('[data-testid="order-form"]').trigger('submit')
+    await flushPromises()
+    expect(wrapper.find('[data-testid="order-dialog"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="public-detail-order-notice-title"]').text()).toBe('Pemesanan online belum tersedia. Silakan coba lagi nanti.')
+  })
+
+  it('closes the order form with "Batal"', async () => {
+    useTravelerStore().signIn('jwt-t', traveler)
+    google.getTravelerMe.mockRejectedValue(new ApiError(0, 'NETWORK_ERROR', 'x'))
+    const wrapper = mount(PublicWisataDetailView)
+    await flushPromises()
+    await wrapper.find('[data-testid="public-detail-order"]').trigger('click')
+    await wrapper.find('[data-testid="order-cancel"]').trigger('click')
+    expect(wrapper.find('[data-testid="order-dialog"]').exists()).toBe(false)
   })
 
   it('opens the lightbox on a gallery image, steps with the arrows and closes', async () => {
@@ -130,13 +194,21 @@ describe('PublicWisataDetailView', () => {
     expect(wrapper.find('[data-testid="public-detail-order"]').text()).toBe('Pesan Sekarang')
   })
 
-  it('adds kabupaten and kode pos from the location API to Alamat when the kelurahan is found', async () => {
-    location.resolveVillageByName.mockResolvedValue({ kabupaten: 'Kabupaten Administrasi Kepulauan Seribu', kodePos: '14520' })
+  it('shows kabupatenKota from the API and the kode pos from village-detail in Alamat', async () => {
+    api.getWisata.mockResolvedValue({ data: { ...wisata, kelurahanId: '31.01.02.1001', kabupatenKota: 'Kabupaten Administrasi Kepulauan Seribu' } })
+    location.getVillageDetail.mockResolvedValue({ data: { id: '31.01.02.1001', name: 'Pulau Pari', postal_code: '14520' }, meta: { updated_at: '2026-10-25', level: 4 } })
     const wrapper = mount(PublicWisataDetailView)
     await flushPromises()
-    expect(location.resolveVillageByName).toHaveBeenCalledWith(expect.objectContaining({ provinsi: 'DKI Jakarta', kecamatan: 'Kepulauan Seribu Selatan', kelurahan: 'Pulau Pari' }))
+    expect(location.getVillageDetail).toHaveBeenCalledWith('31.01.02.1001')
     expect(wrapper.find('[data-testid="public-detail-alamat"]').text()).toBe(
       'Jl. Pantai Selatan Pulau Pari, Kelurahan Pulau Pari, Kecamatan Kepulauan Seribu Selatan, Kabupaten Administrasi Kepulauan Seribu, DKI Jakarta 14520',
     )
+  })
+
+  it('still shows the address with kabupaten when village-detail fails', async () => {
+    api.getWisata.mockResolvedValue({ data: { ...wisata, kelurahanId: '31.01.02.1001', kabupatenKota: 'Kabupaten Administrasi Kepulauan Seribu' } })
+    const wrapper = mount(PublicWisataDetailView)
+    await flushPromises()
+    expect(wrapper.find('[data-testid="public-detail-alamat"]').text()).toMatch(/Kabupaten Administrasi Kepulauan Seribu, DKI Jakarta$/)
   })
 })

@@ -30,8 +30,6 @@ interface RequestOptions {
   formData?: FormData
   token?: string | null
   signal?: AbortSignal
-  /** Kirim/terima cookie sesi (alur Google situs publik). */
-  credentials?: RequestCredentials
 }
 
 function isErrorResponse(value: unknown): value is ErrorResponse {
@@ -55,7 +53,6 @@ export async function request<T>(path: string, options: RequestOptions = {}): Pr
       headers,
       body: options.formData ?? (options.body !== undefined ? JSON.stringify(options.body) : undefined),
       signal: options.signal,
-      ...(options.credentials ? { credentials: options.credentials } : {}),
     })
   } catch (err) {
     if (err instanceof DOMException && err.name === 'AbortError') throw err

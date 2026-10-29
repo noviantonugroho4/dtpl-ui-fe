@@ -26,7 +26,7 @@ const auth = useAuthStore()
 const traveler = useTravelerStore()
 const dialog = useAuthDialogStore()
 
-/** Nama di header: sesi CMS (token) atau sesi wisatawan Google (cookie). */
+/** Nama di header: sesi CMS atau sesi wisatawan Google (keduanya Bearer token). */
 const displayName = computed(() => (auth.isAuthenticated && auth.user ? auth.user.username : traveler.user?.username ?? null))
 const router = useRouter()
 const loggingOut = ref(false)
@@ -53,6 +53,7 @@ function onKeydown(event: KeyboardEvent) {
   if (event.key === 'Escape') menuOpen.value = false
 }
 onMounted(() => {
+  void traveler.initialize()
   document.addEventListener('click', onDocumentClick)
   document.addEventListener('keydown', onKeydown)
 })

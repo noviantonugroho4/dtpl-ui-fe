@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { ApiError } from '@/api/client'
-import { authenticateWithGoogle, decodeGooglePrefill, type GoogleAuthResponse, type GoogleProfileInput } from '@/api/googleAuth'
+import { authenticateWithGoogle, updateTravelerProfile, type TravelerUser, type UpdateProfileInput } from '@/api/googleAuth'
 import { useAuthDialogStore } from '@/stores/authDialog'
 import { useTravelerStore } from '@/stores/traveler'
 import GoogleAuthButton from '@/components/public/GoogleAuthButton.vue'
@@ -21,6 +21,8 @@ const UNAVAILABLE = 'Masuk dengan Google tidak tersedia. Periksa koneksi atau pe
 const busy = ref(false)
 const authError = ref<string | null>(null)
 
+const SESSION_EXPIRED = 'Sesi pendaftaran berakhir. Silakan masuk dengan Google lagi.'
+
 function failureMessage(err: unknown): string {
   if (!(err instanceof ApiError)) return GENERIC_FAILURE
   if (err.status === 409) return 'Email Google ini sudah terdaftar dengan kata sandi. Hubungi admin untuk menautkan akun.'
@@ -28,38 +30,31 @@ function failureMessage(err: unknown): string {
   return GENERIC_FAILURE
 }
 
-function onAuthenticated(response: GoogleAuthResponse) {
-  // `registered` dan `logged_in` ditangani sama persis.
-  traveler.setUser(response.data.user)
-  dialog.close()
-}
-
 function onUnavailable() {
   authError.value = UNAVAILABLE
 }
 
-// ---- panggilan 1: masuk dengan Google (Figma 496:7113) ----
+// ---- langkah 1: masuk dengan Google (Figma 496:7113) ----
 async function onCredential(idToken: string) {
   authError.value = null
   busy.value = true
   try {
-    onAuthenticated(await authenticateWithGoogle(idToken))
-  } catch (err) {
-    if (err instanceof ApiError && err.status === 422) {
-      // Akun Google baru: klaim token hanya untuk isian awal, tidak ada yang tersimpan di server.
-      const prefill = decodeGooglePrefill(idToken)
-      register.namaDepan = register.namaDepan || prefill.namaDepan
-      register.namaBelakang = register.namaBelakang || prefill.namaBelakang
-      dialog.open('register')
+    const { token, user } = (await authenticateWithGoogle(idToken)).data
+    // Yang menentukan adalah profileComplete, bukan outcome: akun lama pun bisa belum lengkap.
+    if (traveler.signIn(token, user) === 'signed_in') {
+      dialog.close()
       return
     }
+    prefillRegister(user)
+    dialog.open('register')
+  } catch (err) {
     authError.value = failureMessage(err)
   } finally {
     busy.value = false
   }
 }
 
-// ---- panggilan 2: lengkapi profil (Figma 496:7120) ----
+// ---- langkah 2: lengkapi profil (Figma 496:7120), PUT /api/auth/profile ----
 const register = reactive({
   namaDepan: '',
   namaBelakang: '',
@@ -72,6 +67,20 @@ const registerErrors = reactive<Record<string, string | null>>({})
 const datePicker = ref<HTMLInputElement | null>(null)
 
 const DATE_RE = /^(\d{2})-(\d{2})-(\d{4})$/
+
+/** Isian awal dari profil server (nama dari Google); yyyy-mm-dd → dd-mm-yyyy. */
+function prefillRegister(user: TravelerUser) {
+  const profile = user.profile
+  register.namaDepan = profile?.namaDepan ?? ''
+  register.namaBelakang = profile?.namaBelakang ?? ''
+  register.tempatLahir = profile?.tempatLahir ?? ''
+  const iso = /^(\d{4})-(\d{2})-(\d{2})$/.exec(profile?.tanggalLahir ?? '')
+  register.tanggalLahir = iso ? `${iso[3]}-${iso[2]}-${iso[1]}` : ''
+  register.alamat = profile?.alamat ?? ''
+  // Prefix +62 tampil terpisah (Figma 496:7120); kolom hanya berisi sisa nomor.
+  register.nomorTelepon = profile?.nomorTelepon ? phoneDigits(profile.nomorTelepon) : ''
+  for (const key of Object.keys(registerErrors)) registerErrors[key] = null
+}
 
 /** dd-mm-yyyy → yyyy-mm-dd, null bila tidak valid. */
 function parseDate(value: string): string | null {
@@ -109,38 +118,49 @@ function validateRegister(): boolean {
   if (!register.tempatLahir.trim()) registerErrors.tempatLahir = required
   if (!register.tanggalLahir.trim()) registerErrors.tanggalLahir = required
   else if (!parseDate(register.tanggalLahir)) registerErrors.tanggalLahir = 'Gunakan format DD-MM-YYYY dengan tanggal yang valid.'
-  if (!register.alamat.trim()) registerErrors.alamat = required
   const phone = phoneDigits(register.nomorTelepon)
   if (!phone) registerErrors.nomorTelepon = required
-  else if (!/^[0-9]{8,13}$/.test(phone)) registerErrors.nomorTelepon = 'Nomor telepon harus 8–13 digit (awali 08 atau +62).'
+  else if (!/^[0-9]{8,13}$/.test(phone)) registerErrors.nomorTelepon = 'Nomor telepon harus 8–13 digit setelah +62.'
   return Object.values(registerErrors).every((v) => !v)
 }
 
-function buildProfile(): GoogleProfileInput {
+function buildProfile(): UpdateProfileInput {
+  const alamat = register.alamat.trim()
   return {
     namaDepan: register.namaDepan.trim(),
     namaBelakang: register.namaBelakang.trim(),
     tempatLahir: register.tempatLahir.trim(),
     tanggalLahir: parseDate(register.tanggalLahir)!,
-    alamat: register.alamat.trim(),
+    ...(alamat ? { alamat } : {}),
     nomorTelepon: `+62${phoneDigits(register.nomorTelepon)}`,
   }
 }
 
-/** Token pertama sudah terpakai (anti-replay), jadi profil dikirim dengan token Google baru. */
-async function onRegisterCredential(freshToken: string) {
+async function onRegisterSubmit() {
   authError.value = null
+  const pending = traveler.pending
+  if (!pending) {
+    dialog.open('login')
+    return
+  }
   if (!validateRegister()) {
     authError.value = 'Periksa kembali bagian yang ditandai.'
     return
   }
   busy.value = true
   try {
-    onAuthenticated(await authenticateWithGoogle(freshToken, buildProfile()))
+    traveler.completeOnboarding((await updateTravelerProfile(pending.token, buildProfile())).data.user)
+    dialog.close()
   } catch (err) {
     if (err instanceof ApiError && err.status === 400 && Object.keys(err.details).length) {
       for (const [field, message] of Object.entries(err.details)) registerErrors[field] = message
       authError.value = 'Periksa kembali bagian yang ditandai.'
+    } else if (err instanceof ApiError && err.status === 401) {
+      void traveler.cancelOnboarding()
+      dialog.open('login')
+      // Setelah watcher mode membersihkan pesan lama.
+      await nextTick()
+      authError.value = SESSION_EXPIRED
     } else {
       authError.value = failureMessage(err)
     }
@@ -168,7 +188,13 @@ watch(isOpen, async (open) => {
 })
 watch(
   () => dialog.mode,
-  () => (authError.value = null),
+  (mode) => {
+    authError.value = null
+    // Keluar dari form registrasi (tutup/Escape/backdrop/"Masuk") sebelum disimpan = batal.
+    if (mode !== 'register' && traveler.pending) void traveler.cancelOnboarding()
+    // Form registrasi hanya bermakna setelah langkah Google.
+    if (mode === 'register' && !traveler.pending) dialog.open('login')
+  },
 )
 
 onMounted(() => window.addEventListener('keydown', onKeydown))
@@ -177,7 +203,7 @@ onBeforeUnmount(() => {
   if (typeof document !== 'undefined') document.body.style.overflow = ''
 })
 
-const FIELD = 'cms-input h-auto w-full px-4 py-3 text-xs leading-[1.4] placeholder:italic'
+const FIELD = 'cms-input h-auto w-full border-[#727272] px-4 py-3 text-xs leading-[1.4] placeholder:italic placeholder:text-[#b3b3b3]'
 </script>
 
 <template>
@@ -228,46 +254,42 @@ const FIELD = 'cms-input h-auto w-full px-4 py-3 text-xs leading-[1.4] placehold
         <GoogleAuthButton text="continue_with" testid="auth-login-google" @credential="onCredential" @unavailable="onUnavailable" />
       </div>
 
-      <!-- ===== Register ===== -->
-      <form v-else class="flex w-full flex-col gap-9" novalidate data-testid="auth-register-form" @submit.prevent>
-
+      <!-- ===== Registrasi (Figma 496:7120) ===== -->
+      <form v-else class="flex w-full flex-col gap-9" novalidate data-testid="auth-register-form" @submit.prevent="onRegisterSubmit">
         <div class="grid w-full gap-x-9 gap-y-3 sm:grid-cols-2">
           <!-- kolom kiri -->
           <div class="flex flex-col gap-3">
             <div class="flex flex-col gap-2.5">
-              <label for="reg-nama-depan" class="text-xs leading-[1.4] text-black">Nama Depan</label>
+              <label for="reg-nama-depan" class="text-xs leading-[1.4] text-black">Nama Depan *</label>
               <input id="reg-nama-depan" v-model="register.namaDepan" type="text" autocomplete="given-name" placeholder="Nama Depan" :class="[FIELD, { 'cms-input--error': registerErrors.namaDepan }]" data-testid="auth-register-nama-depan" />
               <p v-if="registerErrors.namaDepan" class="text-[10px] text-[#ff383c]" role="alert" data-testid="auth-register-nama-depan-error">{{ registerErrors.namaDepan }}</p>
             </div>
             <div class="flex flex-col gap-2.5">
-              <label for="reg-nama-belakang" class="text-xs leading-[1.4] text-black">Nama Belakang</label>
+              <label for="reg-nama-belakang" class="text-xs leading-[1.4] text-black">Nama Belakang *</label>
               <input id="reg-nama-belakang" v-model="register.namaBelakang" type="text" autocomplete="family-name" placeholder="Nama Belakang" :class="[FIELD, { 'cms-input--error': registerErrors.namaBelakang }]" data-testid="auth-register-nama-belakang" />
               <p v-if="registerErrors.namaBelakang" class="text-[10px] text-[#ff383c]" role="alert" data-testid="auth-register-nama-belakang-error">{{ registerErrors.namaBelakang }}</p>
             </div>
             <div class="flex flex-col gap-2.5">
-              <label for="reg-tempat-lahir" class="text-xs leading-[1.4] text-black">Tempat Lahir</label>
-              <input id="reg-tempat-lahir" v-model="register.tempatLahir" type="text" placeholder="Tempat Lahir" :class="[FIELD, { 'cms-input--error': registerErrors.tempatLahir }]" data-testid="auth-register-tempat-lahir" />
-              <p v-if="registerErrors.tempatLahir" class="text-[10px] text-[#ff383c]" role="alert" data-testid="auth-register-tempat-lahir-error">{{ registerErrors.tempatLahir }}</p>
-            </div>
-            <div class="flex flex-col gap-2.5">
-              <label for="reg-tanggal-lahir" class="text-xs leading-[1.4] text-ink-900">Tanggal Lahir</label>
-              <div class="relative">
+              <label for="reg-telepon" class="text-xs leading-[1.4] text-black">Nomor Telepon *</label>
+              <div
+                class="flex overflow-hidden rounded-lg border bg-white focus-within:border-brand-500 focus-within:ring-2 focus-within:ring-brand-500/30"
+                :class="registerErrors.nomorTelepon ? 'border-[#ff383c]' : 'border-[#727272]'"
+              >
+                <span class="flex items-center bg-ink-200 pr-2 pl-4 text-xs tracking-[-0.36px] text-black" aria-hidden="true">+62</span>
                 <input
-                  id="reg-tanggal-lahir"
-                  v-model="register.tanggalLahir"
-                  type="text"
+                  id="reg-telepon"
+                  v-model="register.nomorTelepon"
+                  type="tel"
                   inputmode="numeric"
-                  autocomplete="bday"
-                  placeholder="Tanggal Lahir (DD-MM-YYYY)"
-                  :class="[FIELD, 'pr-11', { 'cms-input--error': registerErrors.tanggalLahir }]"
-                  data-testid="auth-register-tanggal-lahir"
+                  autocomplete="tel-national"
+                  placeholder="812 3456 7890"
+                  aria-describedby="reg-telepon-prefix"
+                  class="min-w-0 flex-1 px-2 py-3 text-xs leading-[1.4] text-ink-900 placeholder:italic placeholder:text-[#b3b3b3] focus:outline-none"
+                  data-testid="auth-register-telepon"
                 />
-                <button type="button" class="absolute inset-y-0 right-0 flex w-11 items-center justify-center text-ink-900 hover:text-brand-500" aria-label="Pilih tanggal" data-testid="auth-register-tanggal-lahir-picker" @click="openDatePicker">
-                  <MaskIcon :src="iconCalendar" :size="16" />
-                </button>
-                <input ref="datePicker" type="date" class="sr-only" tabindex="-1" aria-hidden="true" data-testid="auth-register-tanggal-lahir-native" @change="onDatePicked" />
+                <span id="reg-telepon-prefix" class="sr-only">Kode negara +62</span>
               </div>
-              <p v-if="registerErrors.tanggalLahir" class="text-[10px] text-[#ff383c]" role="alert" data-testid="auth-register-tanggal-lahir-error">{{ registerErrors.tanggalLahir }}</p>
+              <p v-if="registerErrors.nomorTelepon" class="text-[10px] text-[#ff383c]" role="alert" data-testid="auth-register-telepon-error">{{ registerErrors.nomorTelepon }}</p>
             </div>
           </div>
 
@@ -279,22 +301,42 @@ const FIELD = 'cms-input h-auto w-full px-4 py-3 text-xs leading-[1.4] placehold
               <p v-if="registerErrors.alamat" class="text-[10px] text-[#ff383c]" role="alert" data-testid="auth-register-alamat-error">{{ registerErrors.alamat }}</p>
             </div>
             <div class="flex flex-col gap-2.5">
-              <label for="reg-telepon" class="text-xs leading-[1.4] text-black">Nomor Telepon</label>
-              <input id="reg-telepon" v-model="register.nomorTelepon" type="tel" autocomplete="tel" placeholder="Nomor Telepon" :class="[FIELD, { 'cms-input--error': registerErrors.nomorTelepon }]" data-testid="auth-register-telepon" />
-              <p v-if="registerErrors.nomorTelepon" class="text-[10px] text-[#ff383c]" role="alert" data-testid="auth-register-telepon-error">{{ registerErrors.nomorTelepon }}</p>
+              <label for="reg-tanggal-lahir" class="text-xs leading-[1.4] text-ink-900">Tanggal Lahir *</label>
+              <div class="relative">
+                <input
+                  id="reg-tanggal-lahir"
+                  v-model="register.tanggalLahir"
+                  type="text"
+                  inputmode="numeric"
+                  autocomplete="bday"
+                  placeholder="DD-MM-YYYY"
+                  :class="[FIELD, 'pr-11', { 'cms-input--error': registerErrors.tanggalLahir }]"
+                  data-testid="auth-register-tanggal-lahir"
+                />
+                <button type="button" class="absolute inset-y-0 right-0 flex w-11 items-center justify-center text-ink-900 hover:text-brand-500" aria-label="Pilih tanggal" data-testid="auth-register-tanggal-lahir-picker" @click="openDatePicker">
+                  <MaskIcon :src="iconCalendar" :size="16" />
+                </button>
+                <input ref="datePicker" type="date" class="sr-only" tabindex="-1" aria-hidden="true" data-testid="auth-register-tanggal-lahir-native" @change="onDatePicked" />
+              </div>
+              <p v-if="registerErrors.tanggalLahir" class="text-[10px] text-[#ff383c]" role="alert" data-testid="auth-register-tanggal-lahir-error">{{ registerErrors.tanggalLahir }}</p>
+            </div>
+            <!-- Tidak ada di Figma, tetapi wajib di PUT /api/auth/profile. -->
+            <div class="flex flex-col gap-2.5">
+              <label for="reg-tempat-lahir" class="text-xs leading-[1.4] text-black">Tempat Lahir *</label>
+              <input id="reg-tempat-lahir" v-model="register.tempatLahir" type="text" placeholder="Tempat Lahir" :class="[FIELD, { 'cms-input--error': registerErrors.tempatLahir }]" data-testid="auth-register-tempat-lahir" />
+              <p v-if="registerErrors.tempatLahir" class="text-[10px] text-[#ff383c]" role="alert" data-testid="auth-register-tempat-lahir-error">{{ registerErrors.tempatLahir }}</p>
             </div>
           </div>
         </div>
 
-        <div class="flex flex-col items-center gap-2">
-          <p class="text-center text-xs leading-[1.4] text-ink-500">Konfirmasi akun Google Anda untuk menyelesaikan registrasi.</p>
-          <GoogleAuthButton text="signup_with" testid="auth-register-google" @credential="onRegisterCredential" @unavailable="onUnavailable" />
-        </div>
-
-        <p class="flex items-center gap-2.5 text-base leading-[1.4] text-black">
-          <span class="flex-1">Sudah punya akun?</span>
-          <button type="button" class="text-[#166dba] underline hover:text-brand-600" data-testid="auth-switch-login" @click="dialog.open('login')">Masuk dengan Google</button>
-        </p>
+        <button
+          type="submit"
+          :disabled="busy"
+          class="inline-flex h-[52px] w-full items-center justify-center rounded-lg bg-brand-500 p-3 text-base leading-none font-extrabold text-white transition hover:bg-brand-600 disabled:cursor-not-allowed disabled:opacity-60"
+          data-testid="auth-register-submit"
+        >
+          {{ busy ? 'Memproses…' : 'Masuk' }}
+        </button>
       </form>
     </div>
   </div>

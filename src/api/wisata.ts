@@ -6,9 +6,11 @@ export interface ListWisataParams {
   /** 1–50 per the API. */
   limit?: number
   jenis?: WisataType
-  provinsi?: string
-  kecamatan?: string
-  kelurahan?: string
+  /** Filter kode wilayah persis; parameter nama lama (kecamatan=…) kini diabaikan server. */
+  provinsi_id?: string
+  kabupaten_kota_id?: string
+  kecamatan_id?: string
+  kelurahan_id?: string
 }
 
 /** Label tampilan untuk setiap jenis wisata. */

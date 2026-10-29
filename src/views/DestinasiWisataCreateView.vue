@@ -80,10 +80,6 @@ const districts = ref<LocationShortItem[]>([])
 const villages = ref<LocationShortItem[]>([])
 const locationError = ref<string | null>(null)
 
-function nameOf(list: LocationShortItem[], id: string): string {
-  return list.find((item) => item.id === id)?.name ?? ''
-}
-
 async function loadProvinces() {
   locationError.value = null
   try {
@@ -355,9 +351,10 @@ function buildPayload(): CreateWisataRequest {
     jenis: form.jenis as WisataType,
     kontakTelp: `+62${phoneDigits(form.telp)}`,
     ...(wa ? { kontakWa: `+62${wa}` } : {}),
-    provinsi: nameOf(provinces.value, form.provinsi),
-    kecamatan: nameOf(districts.value, form.kecamatan),
-    kelurahan: nameOf(villages.value, form.kelurahan),
+    provinsiId: form.provinsi,
+    kabupatenKotaId: form.kabupaten,
+    kecamatanId: form.kecamatan,
+    kelurahanId: form.kelurahan,
     alamat: form.alamat.trim(),
     mapsLink: form.mapsLink.trim(),
     ...(form.deskripsi.trim() ? { deskripsi: form.deskripsi.trim() } : {}),
@@ -374,9 +371,10 @@ const SERVER_FIELD_MAP: Record<string, string> = {
   jenis: 'jenis',
   kontakTelp: 'telp',
   kontakWa: 'wa',
-  provinsi: 'provinsi',
-  kecamatan: 'kecamatan',
-  kelurahan: 'kelurahan',
+  provinsiId: 'provinsi',
+  kabupatenKotaId: 'kabupaten',
+  kecamatanId: 'kecamatan',
+  kelurahanId: 'kelurahan',
   alamat: 'alamat',
   mapsLink: 'mapsLink',
   deskripsi: 'deskripsi',

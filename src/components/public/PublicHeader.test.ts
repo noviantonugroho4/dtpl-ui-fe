@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import * as authApi from '@/api/auth'
+import { ApiError } from '@/api/client'
 import * as googleApi from '@/api/googleAuth'
 import { useAuthDialogStore } from '@/stores/authDialog'
 import PublicHeader from './PublicHeader.vue'
@@ -23,7 +24,7 @@ vi.mock('vue-router', async () => {
 vi.mock('@/api/auth', () => ({ USE_MOCK_API: false, login: vi.fn(), logout: vi.fn(), me: vi.fn(), health: vi.fn() }))
 vi.mock('@/api/googleAuth', async () => {
   const actual = await vi.importActual<typeof import('@/api/googleAuth')>('@/api/googleAuth')
-  return { ...actual, logoutTraveler: vi.fn().mockResolvedValue({}) }
+  return { ...actual, logoutTraveler: vi.fn().mockResolvedValue({}), getTravelerMe: vi.fn() }
 })
 const api = vi.mocked(authApi)
 const google = vi.mocked(googleApi)
@@ -74,10 +75,14 @@ describe('PublicHeader', () => {
     expect(wrapper.find('[data-testid="public-header-portal"]').attributes('data-to')).toContain('dashboard')
   })
 
-  it('shows a Google traveller by username without Portal Admin, and logs the cookie session out', async () => {
-    localStorage.setItem('dtpl.traveler.user', JSON.stringify({ username: 'wisatawan.1' }))
+  it('shows a Google traveller by username without Portal Admin, and logs the Bearer session out', async () => {
+    localStorage.setItem('dtpl.traveler.token', 'traveler-jwt')
+    localStorage.setItem('dtpl.traveler.user', JSON.stringify({ id: 7, username: 'wisatawan.1' }))
+    google.getTravelerMe.mockResolvedValue({ data: { user: { id: 7, username: 'wisatawan.1', role: 'user', profileComplete: true } } })
     setActivePinia(createPinia())
     const wrapper = mount(PublicHeader)
+    await flushPromises()
+    expect(google.getTravelerMe).toHaveBeenCalledWith('traveler-jwt')
 
     expect(wrapper.find('[data-testid="public-header-user"]').text()).toBe('wisatawan.1')
     await wrapper.find('[data-testid="public-header-user"]').trigger('click')
@@ -85,9 +90,21 @@ describe('PublicHeader', () => {
 
     await wrapper.find('[data-testid="public-header-logout"]').trigger('click')
     await flushPromises()
-    expect(google.logoutTraveler).toHaveBeenCalled()
+    expect(google.logoutTraveler).toHaveBeenCalledWith('traveler-jwt')
     expect(api.logout).not.toHaveBeenCalled()
     expect(localStorage.getItem('dtpl.traveler.user')).toBeNull()
+    expect(localStorage.getItem('dtpl.traveler.token')).toBeNull()
     expect(wrapper.find('[data-testid="public-header-login"]').exists()).toBe(true)
+  })
+
+  it('drops a stored traveller session that the server rejects', async () => {
+    localStorage.setItem('dtpl.traveler.token', 'expired-jwt')
+    localStorage.setItem('dtpl.traveler.user', JSON.stringify({ id: 7, username: 'wisatawan.1' }))
+    google.getTravelerMe.mockRejectedValue(new ApiError(401, 'UNAUTHENTICATED', 'x'))
+    setActivePinia(createPinia())
+    const wrapper = mount(PublicHeader)
+    await flushPromises()
+    expect(wrapper.find('[data-testid="public-header-login"]').exists()).toBe(true)
+    expect(localStorage.getItem('dtpl.traveler.token')).toBeNull()
   })
 })

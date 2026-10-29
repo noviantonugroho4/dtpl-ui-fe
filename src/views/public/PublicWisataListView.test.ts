@@ -202,7 +202,7 @@ describe('PublicWisataListView', () => {
     expect(api.listWisata).toHaveBeenCalledTimes(3) // halaman klien tidak memanggil API lagi
   })
 
-  it('fills Kecamatan from the regency districts and Kelurahan from the chosen district, then filters by name', async () => {
+  it('fills Kecamatan from the regency districts and Kelurahan from the chosen district, then filters by their codes', async () => {
     const wrapper = mount(PublicWisataListView)
     await flushPromises()
 
@@ -218,12 +218,12 @@ describe('PublicWisataListView', () => {
     await wrapper.find('[data-testid="public-list-kecamatan"]').setValue('pesisir tengah')
     await flushPromises()
     expect(location.listVillages).toHaveBeenCalledWith('18.13.01')
-    expect(api.listWisata).toHaveBeenLastCalledWith(expect.objectContaining({ kecamatan: 'Pesisir Tengah', page: 1 }), expect.any(AbortSignal))
+    expect(api.listWisata).toHaveBeenLastCalledWith(expect.objectContaining({ kecamatan_id: '18.13.01', page: 1 }), expect.any(AbortSignal))
     expect(wrapper.findAll('[data-testid="public-list-kelurahan-options"] option').map((o) => o.attributes('value'))).toEqual(['Pasar Krui'])
 
     await wrapper.find('[data-testid="public-list-kelurahan"]').setValue('Pasar Krui')
     await flushPromises()
-    expect(api.listWisata).toHaveBeenLastCalledWith(expect.objectContaining({ kecamatan: 'Pesisir Tengah', kelurahan: 'Pasar Krui' }), expect.any(AbortSignal))
+    expect(api.listWisata).toHaveBeenLastCalledWith(expect.objectContaining({ kecamatan_id: '18.13.01', kelurahan_id: '18.13.01.1001' }), expect.any(AbortSignal))
   })
 })
 

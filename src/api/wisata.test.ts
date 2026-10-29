@@ -9,10 +9,10 @@ describe('wisata api', () => {
     const fetchMock = vi.fn().mockResolvedValue(jsonResponse({ data: [], meta: { page: 2, limit: 10, total: 0, totalPages: 0 } }))
     vi.stubGlobal('fetch', fetchMock)
 
-    await listWisata({ page: 2, limit: 10, kecamatan: 'Kepulauan Seribu', jenis: undefined })
+    await listWisata({ page: 2, limit: 10, kecamatan_id: '18.13.01', jenis: undefined })
 
     const url = fetchMock.mock.calls[0]![0] as string
-    expect(url).toBe('/api/v1/wisata?page=2&limit=10&kecamatan=Kepulauan+Seribu')
+    expect(url).toBe('/api/v1/wisata?page=2&limit=10&kecamatan_id=18.13.01')
   })
 
   it('calls the bare endpoint when there are no filters', async () => {
